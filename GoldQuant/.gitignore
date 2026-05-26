@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+data/raw/*.csv
+data/raw/*.parquet
+.ipynb_checkpoints/
+.vscode/
+*.html
