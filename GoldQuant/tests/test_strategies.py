@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pandas as pd
 
-from goldquant.strategies.base import Strategy
-from goldquant.strategies.examples import (
+from GoldQuant.strategies.base import Strategy
+from GoldQuant.strategies.examples import (
     MovingAverageCrossover, RSIStrategy, BollingerBreakout,
 )
 

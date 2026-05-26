@@ -88,7 +88,7 @@ def add_all(
 ) -> pd.DataFrame:
     """Apply all standard indicators at once."""
     if config is None:
-        from goldquant.config import GoldQuantConfig
+        from GoldQuant.config import GoldQuantConfig
         config = GoldQuantConfig()
     df = add_sma(df, config.sma_short, col)
     df = add_sma(df, config.sma_long, col)

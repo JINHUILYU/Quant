@@ -5,7 +5,7 @@ from typing import Any
 
 import pandas as pd
 
-from goldquant.config import GoldQuantConfig
+from GoldQuant.config import GoldQuantConfig
 
 
 class Strategy(ABC):

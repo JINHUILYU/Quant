@@ -6,7 +6,7 @@ from typing import Any
 import pandas as pd
 import numpy as np
 
-from goldquant.backtest.engine import TradeRecord
+from GoldQuant.backtest.engine import TradeRecord
 
 
 @dataclass

@@ -3,10 +3,10 @@ from __future__ import annotations
 import pandas as pd
 import numpy as np
 
-from goldquant.config import GoldQuantConfig
-from goldquant.backtest.engine import BacktestEngine
-from goldquant.backtest.metrics import compute_metrics, BacktestResult
-from goldquant.strategies.examples import MovingAverageCrossover
+from GoldQuant.config import GoldQuantConfig
+from GoldQuant.backtest.engine import BacktestEngine
+from GoldQuant.backtest.metrics import compute_metrics, BacktestResult
+from GoldQuant.strategies.examples import MovingAverageCrossover
 
 
 def make_flat_data() -> pd.DataFrame:

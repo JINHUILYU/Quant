@@ -7,7 +7,7 @@ from typing import Optional
 import pandas as pd
 import akshare as ak
 
-from goldquant.config import GoldQuantConfig
+from GoldQuant.config import GoldQuantConfig
 
 logger = logging.getLogger(__name__)
 

@@ -6,8 +6,8 @@ from typing import Any
 import pandas as pd
 import numpy as np
 
-from goldquant.config import GoldQuantConfig
-from goldquant.strategies.base import Strategy
+from GoldQuant.config import GoldQuantConfig
+from GoldQuant.strategies.base import Strategy
 
 
 @dataclass

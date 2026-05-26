@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from goldquant.config import GoldQuantConfig
+from GoldQuant.config import GoldQuantConfig
 
 logger = logging.getLogger(__name__)
 
