@@ -7,6 +7,7 @@ from pathlib import Path
 @dataclass
 class GoldQuantConfig:
     data_dir: Path = field(default_factory=lambda: Path("data/raw"))
+    portfolio_dir: str = "data/portfolio"
     default_symbol: str = "Au99.99"
     initial_capital: float = 100_000.0
     commission_pct: float = 0.0008  # SGE ~0.08%
@@ -28,6 +29,13 @@ class GoldQuantConfig:
     @property
     def data_dir_abs(self) -> Path:
         p = Path(self.data_dir)
+        if not p.is_absolute():
+            p = Path(__file__).resolve().parent.parent.parent / p
+        return p
+
+    @property
+    def portfolio_dir_abs(self) -> Path:
+        p = Path(self.portfolio_dir)
         if not p.is_absolute():
             p = Path(__file__).resolve().parent.parent.parent / p
         return p
