@@ -15,6 +15,53 @@ pytest tests/ -v
 pytest tests/test_indicators.py -v
 ```
 
+## Scripts
+
+### 交易记录管理 (`scripts/add_transaction.py`)
+
+自动获取净值、计算份额和手续费，写入 CSV。
+
+```bash
+# 添加单笔交易
+python scripts/add_transaction.py add \
+  --date 2026-05-27 \
+  --product 002611 \
+  --type buy \
+  --amount 10000 \
+  --notes "定投"
+
+# 卖出（amount 为到账金额，手续费已扣除）
+python scripts/add_transaction.py add \
+  --date 2026-05-27 \
+  --product 002611 \
+  --type sell \
+  --amount 5800
+
+# 批量补全 CSV 中缺失的 price/shares/fee（手动填入 date/product/type/amount/notes，运行此命令自动补全）
+python scripts/add_transaction.py fill           # 所有产品
+python scripts/add_transaction.py fill 002611    # 指定产品
+```
+
+**参数说明**：
+- `--date`：交易日期，格式 `YYYY-MM-DD`
+- `--product`：基金代码（如 `002611`）
+- `--type`：`buy`（买入）或 `sell`（卖出）
+- `--amount`：金额（买入时含手续费，卖出时为到账金额）
+- `--notes`：备注（可选）
+
+**费率规则**：在 `src/GoldQuant/portfolio/fees.py` 中配置。买入费率默认 0%（C 类基金），卖出按持有天数阶梯：<7 天 1.5%，7-30 天 0.1%，≥30 天 0%。
+
+### 持仓分析报告 (`scripts/portfolio_report.py`)
+
+生成持仓分析报告和交互式图表。
+
+```bash
+python scripts/portfolio_report.py 002611          # 查看 002611 的持仓分析
+python scripts/portfolio_report.py 002611 --no-html # 不生成 HTML 图表
+```
+
+输出包括：累计投入/取出、当前持仓、总盈亏、年化 IRR、最大回撤，以及基于均线/RSI/布林带的策略信号。
+
 ## Architecture
 
 **Data flow**: `SgeFetcher` (AkShare) → `LocalDataStore` (CSV) → indicators (pure functions) → `Strategy` (signals) → `BacktestEngine` (bar-by-bar loop) → `compute_metrics` → Plotly charts.
