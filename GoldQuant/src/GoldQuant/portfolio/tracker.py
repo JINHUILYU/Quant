@@ -69,25 +69,38 @@ class PortfolioTracker:
         if missing:
             raise ValueError(f"Missing columns in {path}: {missing}")
 
-        invalid = df[~df["type"].isin(["buy", "sell"])]
+        invalid = df[~df["type"].isin(["buy", "sell", "dividend"])]
         if not invalid.empty:
             raise ValueError(
                 f"Invalid type values at rows {invalid.index.tolist()}: "
-                f"must be 'buy' or 'sell'"
+                f"must be 'buy', 'sell', or 'dividend'"
             )
 
         transactions = []
         for _, row in df.iterrows():
-            transactions.append(Transaction(
-                date=row["date"],
-                product=str(row["product"]),
-                type=str(row["type"]),
-                amount=float(row["amount"]),
-                price=float(row["price"]),
-                shares=float(row["shares"]),
-                fee=float(row.get("fee", 0.0) or 0.0),
-                notes=str(row.get("notes", "") or ""),
-            ))
+            txn_type = str(row["type"])
+            if txn_type == "dividend":
+                transactions.append(Transaction(
+                    date=row["date"],
+                    product=str(row["product"]),
+                    type="dividend",
+                    amount=float(row.get("amount", 0) or 0),
+                    price=float(row.get("price", 0) or 0),
+                    shares=float(row.get("shares", 0) or 0),
+                    fee=0.0,
+                    notes=str(row.get("notes", "") or ""),
+                ))
+            else:
+                transactions.append(Transaction(
+                    date=row["date"],
+                    product=str(row["product"]),
+                    type=txn_type,
+                    amount=float(row["amount"]),
+                    price=float(row["price"]),
+                    shares=float(row["shares"]),
+                    fee=float(row.get("fee", 0.0) or 0.0),
+                    notes=str(row.get("notes", "") or ""),
+                ))
         return transactions
 
     # ── NAV fetching ───────────────────────────────────────────────────
@@ -135,6 +148,14 @@ class PortfolioTracker:
                     shares += t.shares
                     total_cost += t.amount
                     cum_invested += t.amount
+                elif t.type == "dividend":
+                    if t.shares > 0:
+                        # 红利再投资：免费增加份额，成本不变
+                        shares += t.shares
+                    else:
+                        # 现金分红：成本基准降低（相当于返还部分本金）
+                        total_cost = max(0, total_cost - t.amount)
+                        cum_invested -= t.amount
                 else:  # sell
                     if shares > 0:
                         cost_reduction = total_cost * (t.shares / shares)
@@ -271,7 +292,8 @@ class PortfolioTracker:
         holdings = self.compute_holdings(daily, product_code)
 
         total_invested = sum(t.amount for t in txns if t.type == "buy")
-        total_withdrawn = sum(t.amount for t in txns if t.type == "sell")
+        total_withdrawn = sum(t.amount for t in txns if t.type in ("sell", "dividend"))
+        dividend_received = sum(t.amount for t in txns if t.type == "dividend")
         current_val = daily["market_value"].iloc[-1]
         total_pnl = current_val + total_withdrawn - total_invested
         total_pnl_pct = (

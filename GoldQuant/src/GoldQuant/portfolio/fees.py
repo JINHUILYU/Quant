@@ -61,6 +61,13 @@ def compute_lots(txns: list[Transaction]) -> list[Lot]:
                 shares=t.shares,
                 price=t.price,
             ))
+        elif t.type == "dividend" and t.shares > 0:
+            # 红利再投资：份额增加，成本为零，按当前日期入批次
+            lots.append(Lot(
+                date=t.date.strftime("%Y-%m-%d"),
+                shares=t.shares,
+                price=0.0,
+            ))
         else:  # sell — consume FIFO
             remaining = t.shares
             while remaining > 0 and lots:
@@ -78,14 +85,21 @@ def compute_lots(txns: list[Transaction]) -> list[Lot]:
 # ---------------------------------------------------------------------------
 
 
-def compute_buy(amount: float, price: float, product: str) -> tuple[float, float]:
+def compute_buy(
+    amount: float, price: float, product: str, known_fee: float | None = None,
+) -> tuple[float, float]:
     """Calculate (shares, fee) for a buy.
 
     ``amount`` is the total cash paid (gross, including fee).
+    ``known_fee`` overrides the fee rate lookup when the actual fee is known.
     """
-    fee_rate = get_buy_fee_rate(product)
-    net_amount = amount / (1.0 + fee_rate)
-    fee = round(amount - net_amount, 2)
+    if known_fee is not None:
+        net_amount = amount - known_fee
+        fee = known_fee
+    else:
+        fee_rate = get_buy_fee_rate(product)
+        net_amount = amount / (1.0 + fee_rate)
+        fee = round(amount - net_amount, 2)
     shares = round(net_amount / price, 2)
     return shares, fee
 
@@ -96,27 +110,32 @@ def compute_sell(
     product: str,
     txns: list[Transaction],
     sell_date: str,
+    known_fee: float | None = None,
 ) -> tuple[float, float] | None:
     """Calculate (shares, fee) for a sell.
 
     ``amount`` is the net cash received (after fee deduction).
     ``sell_date`` is "YYYY-MM-DD", used as the reference for holding-period fees.
+    ``known_fee`` overrides the FIFO fee calculation when the actual fee is known.
     Returns None if there aren't enough shares to fulfil the redemption.
     """
-    # Step 1: current FIFO lots
+    if known_fee is not None:
+        gross = amount + known_fee
+        shares = round(gross / price, 2)
+        return shares, known_fee
+
+    # below: auto-compute fee from FIFO holding periods
     lots = compute_lots(txns)
     total_held = sum(l.shares for l in lots)
     if total_held <= 0:
         return None
 
-    # Step 2: iterate — guess shares → compute weighted fee → refine
     fee_rate_guess = 0.0
     for _ in range(3):
         gross = amount / (1.0 - fee_rate_guess)
         shares_needed = round(gross / price, 2)
 
         if shares_needed > total_held:
-            # Not enough shares — use all
             shares_needed = total_held
             fee_rate_guess = _fifo_weighted_rate(lots, shares_needed, sell_date)
             gross = shares_needed * price

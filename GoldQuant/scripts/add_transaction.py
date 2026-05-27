@@ -169,10 +169,14 @@ def fill_incomplete(args) -> None:
 
         for idx in range(len(df)):
             row = df.iloc[idx]
+            if str(row.get("type", "")).strip() == "dividend":
+                continue  # 分红行由用户手动填写，不需要自动计算
             has_price = pd.notna(row.get("price")) and row["price"] != 0
             has_shares = pd.notna(row.get("shares")) and row["shares"] != 0
-            if has_price and has_shares:
-                continue
+            raw_fee = row.get("fee", 0)
+            has_fee = pd.notna(raw_fee) and raw_fee != 0
+            if has_price and has_shares and not has_fee:
+                continue  # 完整且无手续费的行跳过；有手续费时需用手续费重算份额
 
             target_date = str(row["date"].strftime("%Y-%m-%d") if hasattr(row["date"], "strftime") else row["date"])[:10]
             txn_type = str(row["type"]).strip()
@@ -184,10 +188,12 @@ def fill_incomplete(args) -> None:
                 print(f"  [WARN] 跳过 {product} 第{idx + 2}行: 无法获取净值")
                 continue
 
+            known_fee = float(raw_fee) if pd.notna(raw_fee) and raw_fee != 0 else None
+
             if txn_type == "buy":
-                shares, fee = compute_buy(amount, price, product)
+                shares, fee = compute_buy(amount, price, product, known_fee)
             else:
-                result = compute_sell(amount, price, product, completed_txns, target_date)
+                result = compute_sell(amount, price, product, completed_txns, target_date, known_fee)
                 if result is None:
                     print(f"  [WARN] 跳过 {product} 第{idx + 2}行: 持仓不足")
                     continue

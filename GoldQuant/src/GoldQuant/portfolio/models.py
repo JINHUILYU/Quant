@@ -9,7 +9,7 @@ import pandas as pd
 class Transaction:
     date: pd.Timestamp
     product: str
-    type: str          # "buy" | "sell"
+    type: str          # "buy" | "sell" | "dividend"
     amount: float       # net cash flow (buy: total paid incl. fee; sell: net received after fee)
     price: float        # NAV per share
     shares: float       # number of shares
