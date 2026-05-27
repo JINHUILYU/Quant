@@ -26,6 +26,15 @@ class GoldQuantConfig:
     macd_signal: int = 9
     atr_period: int = 14
 
+    # Long-term strategy defaults
+    lt_sma_short: int = 50
+    lt_sma_long: int = 200
+    lt_rsi_period: int = 21
+    lt_rsi_overbought: float = 80.0
+    lt_rsi_oversold: float = 20.0
+    lt_bollinger_period: int = 50
+    lt_bollinger_std: float = 3.0
+
     @property
     def data_dir_abs(self) -> Path:
         p = Path(self.data_dir)

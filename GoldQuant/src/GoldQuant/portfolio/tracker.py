@@ -374,6 +374,9 @@ class PortfolioTracker:
         """Run strategies on NAV data and return a human-readable signal summary."""
         from GoldQuant.strategies.examples import (
             BollingerBreakout,
+            LongTermBB,
+            LongTermMA,
+            LongTermRSI,
             MovingAverageCrossover,
             RSIStrategy,
         )
@@ -389,6 +392,9 @@ class PortfolioTracker:
             MovingAverageCrossover(self.cfg.sma_short, self.cfg.sma_long, self.cfg),
             RSIStrategy(self.cfg.rsi_period, self.cfg.rsi_oversold, self.cfg.rsi_overbought, self.cfg),
             BollingerBreakout(self.cfg.bollinger_period, self.cfg.bollinger_std, self.cfg),
+            LongTermMA(self.cfg.lt_sma_short, self.cfg.lt_sma_long, self.cfg),
+            LongTermRSI(self.cfg.lt_rsi_period, self.cfg.lt_rsi_oversold, self.cfg.lt_rsi_overbought, self.cfg),
+            LongTermBB(self.cfg.lt_bollinger_period, self.cfg.lt_bollinger_std, self.cfg),
         ]
 
         lines = []
@@ -428,7 +434,7 @@ class PortfolioTracker:
         else:
             tag = "[观望]"
 
-        if name == "MovingAverageCrossover":
+        if name in ("MovingAverageCrossover", "LongTermMA"):
             short_k = strat.short_window
             long_k = strat.long_window
             sma_s = latest.get(f"sma_{short_k}")
@@ -439,7 +445,7 @@ class PortfolioTracker:
             else:
                 hint = "数据不足"
 
-        elif name == "RSIStrategy":
+        elif name in ("RSIStrategy", "LongTermRSI"):
             rsi = latest.get(f"rsi_{strat.period}")
             if pd.notna(rsi):
                 if rsi < strat.oversold:
@@ -452,7 +458,7 @@ class PortfolioTracker:
             else:
                 hint = "数据不足"
 
-        elif name == "BollingerBreakout":
+        elif name in ("BollingerBreakout", "LongTermBB"):
             upper = latest.get("bb_upper")
             middle = latest.get("bb_middle")
             lower = latest.get("bb_lower")
