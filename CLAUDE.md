@@ -2,7 +2,120 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-GoldQuant 项目中的 Claude Code 文件为 ./GoldQuant/CLAUDE.md。
+## Commands
+
+```bash
+# Install in editable mode
+pip install -e ".[dev]"
+
+# Run all tests (no network calls — all tests use synthetic data)
+pytest tests/ -v
+
+# Run a single test file
+pytest tests/test_indicators.py -v
+```
+
+## Scripts
+
+### 交易记录管理 (`scripts/add_transaction.py`)
+
+自动获取净值、计算份额和手续费，写入 CSV。
+
+```bash
+# 添加单笔交易
+python scripts/add_transaction.py add \
+  --date 2026-05-27 \
+  --product 002611 \
+  --type buy \
+  --amount 10000 \
+  --notes "定投"
+
+# 卖出（amount 为到账金额，手续费已扣除）
+python scripts/add_transaction.py add \
+  --date 2026-05-27 \
+  --product 002611 \
+  --type sell \
+  --amount 5800
+
+# 手动指定手续费（不传 --fee 则按费率表自动计算）
+python scripts/add_transaction.py add \
+  --date 2026-05-27 \
+  --product 002611 \
+  --type buy \
+  --amount 10000 \
+  --fee 10
+
+# 批量补全 CSV 中缺失的 price/shares/fee（手动填入 date/product/type/amount/notes，运行此命令自动补全）
+python scripts/add_transaction.py fill           # 所有产品
+python scripts/add_transaction.py fill 002611    # 指定产品
+```
+
+**参数说明**：
+- `--date`：交易日期，格式 `YYYY-MM-DD`
+- `--product`：基金代码（如 `002611`）
+- `--type`：`buy`（买入）或 `sell`（卖出）
+- `--amount`：金额（买入时含手续费，卖出时为到账金额）
+- `--fee`：手续费（可选，不传则按费率表自动计算）
+- `--notes`：备注（可选）
+
+**费率规则**：在 `src/GoldQuant/portfolio/fees.py` 中配置。买入费率默认 0%（C 类基金），卖出按持有天数阶梯：<7 天 1.5%，7-30 天 0.1%，≥30 天 0%。
+
+### 持仓分析报告 (`scripts/portfolio_report.py`)
+
+生成持仓分析报告和交互式图表。
+
+```bash
+python scripts/portfolio_report.py 002611          # 查看 002611 的持仓分析
+python scripts/portfolio_report.py 002611 --no-html # 不生成 HTML 图表
+```
+
+输出包括：累计投入/取出、当前持仓、总盈亏、年化 IRR、最大回撤，以及基于均线/RSI/布林带的策略信号。
+
+### 投资组合汇总 (`scripts/portfolio_summary.py`)
+
+统计所有产品的收益率和收益金额，含每只产品单独结果和总合计。
+
+```bash
+python scripts/portfolio_summary.py
+```
+
+输出包括：每只产品的累计投入、累计取出、持仓市值、已实现盈亏、浮动盈亏、总盈亏、收益率，以及汇总行。
+
+## Architecture
+
+**Data flow**: `SgeFetcher` (AkShare) → `LocalDataStore` (CSV) → indicators (pure functions) → `Strategy` (signals) → `BacktestEngine` (bar-by-bar loop) → `compute_metrics` → Plotly charts.
+
+### Strategy contract
+
+Every strategy subclasses `Strategy` (in `strategies/base.py`) and implements two methods:
+
+- `init(data) -> DataFrame` — attach indicator columns to a copy of the data, return it.
+- `next(i, row, context) -> int` — called per bar. Return `1` (enter/buy), `-1` (exit/sell), `0` (hold). `context` is a mutable dict the engine reads/writes (keys: `position`, `entry_price`). The engine sets `context["position"]` after executing entries/exits — strategies should use it for state-aware logic.
+
+Subclasses auto-register in `Strategy.registry` by class name.
+
+### Indicators are pure functions
+
+All functions in `analysis/indicators.py` take a DataFrame and return a **new** DataFrame with added columns (never mutate the input). They assume a `close` column exists and the data is sorted chronologically. This enables chaining:
+
+```python
+df = add_rsi(add_sma(df, 20), 14)
+```
+
+### Backtest engine
+
+`BacktestEngine.run()` does bar-by-bar simulation (not vectorized) to avoid lookahead bias. It tracks cash + units, applies slippage on entry/exit prices, deducts commission from PnL, and records `TradeRecord` dataclasses for every completed round-trip. Returns a dict with `equity_curve` (DataFrame), `trades` (list), `strategy`, `symbol`, `initial_capital`.
+
+`compute_metrics()` converts that dict into a `BacktestResult` dataclass with Sharpe ratio (annualized, sqrt(252)), max drawdown, win rate, profit factor, etc.
+
+### Config
+
+`GoldQuantConfig` is a `@dataclass` in `config.py` holding all tunable parameters — data dir, commission, indicator periods, etc. All components accept an optional `config` argument and default to a fresh `GoldQuantConfig()`.
+
+### Data layer
+
+- `SgeFetcher.fetch_hist()` wraps `akshare.spot_hist_sge()` — normalizes column names to lowercase, coerces date column, adds symbol column, sorts chronologically. Retries with exponential backoff on failure.
+- `LocalDataStore` handles CSV round-trips under `data/raw/`. `update()` merges new data with cached data, deduplicating on `date`.
 
 ## Response Language
 
