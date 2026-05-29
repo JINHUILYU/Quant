@@ -196,10 +196,10 @@ class PortfolioTracker:
         nav = last["nav"]
         mkt_val = last["market_value"]
 
-        if shares > 0 and cost > 0:
-            avg_cost = cost / shares
+        if shares > 0:
+            avg_cost = cost / shares if cost > 0 else 0.0
             pnl = mkt_val - cost
-            pnl_pct = (mkt_val / cost - 1) * 100
+            pnl_pct = (mkt_val / cost - 1) * 100 if cost > 0 else 0.0
         else:
             avg_cost = 0.0
             pnl = 0.0
