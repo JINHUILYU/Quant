@@ -123,6 +123,7 @@ def add_single(args) -> None:
     product = args.product
     txn_type = args.type
     amount = args.amount
+    known_fee = args.fee
     notes = args.notes or ""
 
     price = fetch_nav_on_date(product, date)
@@ -130,10 +131,10 @@ def add_single(args) -> None:
         sys.exit(1)
 
     if txn_type == "buy":
-        shares, fee = compute_buy(amount, price, product)
+        shares, fee = compute_buy(amount, price, product, known_fee)
     else:
         txns = load_existing_txns(product, cfg)
-        result = compute_sell(amount, price, product, txns, date)
+        result = compute_sell(amount, price, product, txns, date, known_fee)
         if result is None:
             print(f"  [ERROR] {product} 当前无持仓，无法卖出")
             sys.exit(1)
@@ -238,6 +239,7 @@ def main() -> None:
     p_add.add_argument("--product", required=True, help="基金代码")
     p_add.add_argument("--type", required=True, choices=["buy", "sell"], help="buy 或 sell")
     p_add.add_argument("--amount", type=float, required=True, help="金额（买入含手续费，卖出为到账金额）")
+    p_add.add_argument("--fee", type=float, default=None, help="手续费（可选，不传则按费率表自动计算）")
     p_add.add_argument("--notes", default="", help="备注（可选）")
 
     # fill
