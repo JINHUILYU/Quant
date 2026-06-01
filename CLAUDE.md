@@ -101,6 +101,18 @@ python scripts/fund_info.py stats 002611 --days 90     # 90 天统计
 python scripts/fund_info.py lookup 002611              # 查本地记录的基金名
 ```
 
+### 实时行情快照 (`scripts/market_snapshot.py`)
+
+盘中查看黄金 ETF、关键指数、持仓关联 ETF 的实时价格和涨跌。
+
+```bash
+python scripts/market_snapshot.py           # 完整快照（黄金+指数+ETF+建议）
+python scripts/market_snapshot.py --brief   # 简洁版（仅总结和建议）
+python scripts/market_snapshot.py --gold    # 只看黄金 ETF
+```
+
+数据来源为 akshare 实时行情，基金净值收盘后才出，盘中用此脚本看标的走势辅助决策。
+
 ### 持仓分析报告 (`scripts/portfolio_report.py`)
 
 生成持仓分析报告和交互式图表。
