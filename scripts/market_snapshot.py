@@ -40,9 +40,55 @@ RESET = "\033[0m"
 BOLD = "\033[1m"
 
 
-def _color(val: float) -> str:
+def _dw(s: str) -> int:
+    """Display width: CJK=2, ASCII=1. Strips ANSI codes first."""
+    import re
+    import unicodedata
+    clean = re.sub(r"\033\[[0-9;]*m", "", s)
+    w = 0
+    for ch in clean:
+        w += 2 if unicodedata.east_asian_width(ch) in ("W", "F") else 1
+    return w
+
+
+def _pad(s: str, width: int, align: str = "<") -> str:
+    """Pad *s* to *display width*."""
+    d = _dw(s)
+    pad = max(0, width - d)
+    if align == ">":
+        return " " * pad + s
+    return s + " " * pad
+
+
+def _trunc(s: str, width: int) -> str:
+    """Truncate to display width."""
+    import re
+    import unicodedata
+    clean = re.sub(r"\033\[[0-9;]*m", "", s)
+    w = 0
+    result: list[str] = []
+    i = 0
+    while i < len(s):
+        ch = s[i]
+        # skip ANSI sequences
+        if ch == "\033":
+            end = s.index("m", i) + 1
+            result.append(s[i:end])
+            i = end
+            continue
+        cw = 2 if unicodedata.east_asian_width(ch) in ("W", "F") else 1
+        if w + cw > width:
+            break
+        result.append(ch)
+        w += cw
+        i += 1
+    return "".join(result)
+
+
+def _color_chg(val: float) -> str:
+    """Colored change string. Color applied last, after padding."""
     if val > 0:
-        return f"{GREEN}+{val:.2f}%{RESET}"
+        return f"{GREEN}{val:+.2f}%{RESET}"
     elif val < 0:
         return f"{RED}{val:.2f}%{RESET}"
     return " 0.00%"
@@ -66,20 +112,22 @@ def show_gold(etfs: pd.DataFrame) -> None:
         "518600": "广发上海金ETF（→008987联接）",
         "518850": "华夏黄金ETF（→008701联接）",
     }
+    CODE_W, NAME_W, PRICE_W, CHG_W = 8, 32, 10, 10
+
     print(f"\n  {BOLD}🥇 黄金 ETF 实时行情{RESET}")
-    print(f"  {'代码':<8} {'名称':<28} {'最新价':>8} {'涨跌幅':>10}")
-    print("  " + "─" * 58)
+    print(f"  {_pad('代码', CODE_W)} {_pad('名称', NAME_W)} {_pad('最新价', PRICE_W, '>')} {_pad('涨跌幅', CHG_W, '>')}")
+    print("  " + "─" * (2 + CODE_W + 1 + NAME_W + 1 + PRICE_W + 1 + CHG_W))
     for _, r in etfs.iterrows():
         code = str(r.get("代码", ""))
         if code in gold_etfs:
-            price = r.get("最新价", "-")
+            price = str(r.get("最新价", "-"))
             chg = r.get("涨跌幅", 0)
             try:
                 chg_f = float(chg) if chg and chg != "-" else 0.0
             except (ValueError, TypeError):
                 chg_f = 0.0
-            c = _color(chg_f)
-            print(f"  {code:<8} {gold_etfs[code]:<28} {str(price):>8}  {c}")
+            chg_str = f"{chg_f:+.2f}%" if chg_f != 0 else " 0.00%"
+            print(f"  {_pad(code, CODE_W)} {_pad(_trunc(gold_etfs[code], NAME_W), NAME_W)} {_pad(price, PRICE_W, '>')} {_pad(chg_str, CHG_W, '>')}")
     print()
 
 
@@ -89,31 +137,31 @@ def show_key_indices(indices: pd.DataFrame) -> None:
         "上证指数", "沪深300", "上证50", "科创50", "科创芯片",
         "创业板指", "深证成指", "上证综合全收益",
     ]
+    NAME_W, PRICE_W, CHG_W = 16, 10, 10
+
     print(f"  {BOLD}📊 关键指数{RESET}")
-    print(f"  {'名称':<16} {'最新':>10} {'涨跌幅':>10} {'方向':>4}")
-    print("  " + "─" * 46)
+    print(f"  {_pad('名称', NAME_W)} {_pad('最新', PRICE_W, '>')} {_pad('涨跌幅', CHG_W, '>')}")
+    print("  " + "─" * (2 + NAME_W + 1 + PRICE_W + 1 + CHG_W))
     shown = set()
     for _, r in indices.iterrows():
         name = str(r.get("名称", ""))
         for kw in KEYWORDS:
             if kw in name and name not in shown:
                 shown.add(name)
-                price = r.get("最新价", "-")
+                price = str(r.get("最新价", "-"))
                 chg_raw = r.get("涨跌幅", 0)
                 try:
                     chg = float(chg_raw) if chg_raw else 0.0
                 except (ValueError, TypeError):
                     chg = 0.0
-                arrow = _sign(chg)
-                c = _color(chg)
-                print(f"  {name:<16} {str(price):>10}  {c}  {arrow}")
+                chg_str = f"{chg:+.2f}%" if chg != 0 else " 0.00%"
+                print(f"  {_pad(name, NAME_W)} {_pad(price, PRICE_W, '>')} {_pad(chg_str, CHG_W, '>')}")
                 break
     print()
 
 
 def show_portfolio_etfs(etfs: pd.DataFrame) -> None:
     """ETFs corresponding to feeder funds in portfolio."""
-    # ETF spot codes for funds the user holds (via feeder fund tracking)
     RELEVANT = {
         "159941": "纳指ETF（→019548/016452联接）",
         "513100": "纳指100ETF（→016452联接）",
@@ -123,20 +171,23 @@ def show_portfolio_etfs(etfs: pd.DataFrame) -> None:
         "159994": "5G通信ETF",
         "161226": "白银LOF（→161226）",
     }
+    CODE_W, NAME_W, PRICE_W, CHG_W = 8, 34, 10, 10
+
     print(f"  {BOLD}🔗 持仓关联 ETF{RESET}")
-    print(f"  {'代码':<8} {'名称':<28} {'最新价':>8} {'涨跌幅':>10}")
-    print("  " + "─" * 58)
+    print(f"  {_pad('代码', CODE_W)} {_pad('名称', NAME_W)} {_pad('最新价', PRICE_W, '>')} {_pad('涨跌幅', CHG_W, '>')}")
+    print("  " + "─" * (2 + CODE_W + 1 + NAME_W + 1 + PRICE_W + 1 + CHG_W))
     for _, r in etfs.iterrows():
         code = str(r.get("代码", ""))
         if code in RELEVANT:
-            price = r.get("最新价", "-")
+            price_raw = r.get("最新价", "-")
+            price_str = str(price_raw) if pd.notna(price_raw) else "-"
             chg = r.get("涨跌幅", 0)
             try:
-                chg_f = float(chg) if chg and chg != "-" else 0.0
+                chg_f = float(chg) if pd.notna(chg) and chg != "-" else 0.0
             except (ValueError, TypeError):
                 chg_f = 0.0
-            c = _color(chg_f)
-            print(f"  {code:<8} {RELEVANT[code]:<28} {str(price):>8}  {c}")
+            chg_str = f"{chg_f:+.2f}%" if chg_f != 0 else " 0.00%"
+            print(f"  {_pad(code, CODE_W)} {_pad(_trunc(RELEVANT[code], NAME_W), NAME_W)} {_pad(price_str, PRICE_W, '>')} {_pad(chg_str, CHG_W, '>')}")
     print()
 
 
@@ -159,23 +210,23 @@ def show_summary(indices: pd.DataFrame, etfs: pd.DataFrame) -> None:
     print(f"  {BOLD}📝 一句话总结{RESET}")
     parts = []
     if sh_chg > 0.3:
-        parts.append(f"大盘{_color(sh_chg)} 偏强")
+        parts.append(f"大盘{_color_chg(sh_chg)} 偏强")
     elif sh_chg < -0.3:
-        parts.append(f"大盘{_color(sh_chg)} 偏弱")
+        parts.append(f"大盘{_color_chg(sh_chg)} 偏弱")
     else:
-        parts.append(f"大盘{_color(sh_chg)} 横盘")
+        parts.append(f"大盘{_color_chg(sh_chg)} 横盘")
 
     if gold_chg > 0.1:
-        parts.append(f"黄金{_color(gold_chg)}")
+        parts.append(f"黄金{_color_chg(gold_chg)}")
     elif gold_chg < -0.1:
-        parts.append(f"黄金{_color(gold_chg)}")
+        parts.append(f"黄金{_color_chg(gold_chg)}")
     else:
         parts.append("黄金横盘")
 
     if chip_chg < -1:
-        parts.append(f"半导体{_color(chip_chg)} 承压")
+        parts.append(f"半导体{_color_chg(chip_chg)} 承压")
     elif chip_chg > 1:
-        parts.append(f"半导体{_color(chip_chg)} 强势")
+        parts.append(f"半导体{_color_chg(chip_chg)} 强势")
 
     print(f"  {' | '.join(parts)}")
 

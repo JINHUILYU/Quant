@@ -24,6 +24,26 @@ import pandas as pd
 from GoldQuant.portfolio.tracker import PortfolioTracker
 
 
+# ── Display-width helpers (CJK = 2, ASCII = 1) ─────────────────────────
+
+def _dw(s: str) -> int:
+    """Display width: CJK characters count as 2."""
+    import unicodedata
+    w = 0
+    for ch in s:
+        w += 2 if unicodedata.east_asian_width(ch) in ("W", "F") else 1
+    return w
+
+
+def _pad(s: str, width: int, align: str = "<") -> str:
+    """Pad *s* to *display width*."""
+    d = _dw(s)
+    pad = max(0, width - d)
+    if align == ">":
+        return " " * pad + s
+    return s + " " * pad  # left-align default
+
+
 def cmd_nav(args) -> None:
     """Show recent NAV history for a fund."""
     nav = _fetch(args.product)
@@ -32,18 +52,21 @@ def cmd_nav(args) -> None:
     if not args.asc:
         recent = recent.iloc[::-1]
 
+    DATE_W, NAV_W, CHG_W = 12, 10, 10
+    sep_w = 2 + DATE_W + 1 + NAV_W + 2 + CHG_W
+
     prev = None
     print()
-    print(f"  {'日期':<12} {'净值':>8}  {'涨跌':>8}")
-    print("  " + "─" * 32)
+    print(f"  {_pad('日期', DATE_W)} {_pad('净值', NAV_W, '>')}  {_pad('涨跌', CHG_W, '>')}")
+    print("  " + "─" * (sep_w - 2))
     for _, r in recent.iterrows():
         curr = r["nav"]
         if prev is not None:
-            chg = (curr - prev) / prev * 100
-            chg_str = f"{chg:+.2f}%"
+            chg_str = f"{(curr - prev) / prev * 100:+.2f}%"
         else:
             chg_str = ""
-        print(f"  {r['date'].strftime('%Y-%m-%d'):<12} {curr:>8.4f}  {chg_str:>8}")
+        date_str = r["date"].strftime("%Y-%m-%d")
+        print(f"  {_pad(date_str, DATE_W)} {_pad(f'{curr:.4f}', NAV_W, '>')}  {_pad(chg_str, CHG_W, '>')}")
         prev = curr
     print()
 
@@ -60,13 +83,17 @@ def cmd_calendar(args) -> None:
         print(f"  区间内无交易数据")
         return
 
-    print()
-    print(f"  {'日期':<12} {'周几':<6} {'净值':>8}")
-    print("  " + "─" * 28)
+    DATE_W, WD_W, NAV_W = 12, 6, 10
+    sep_w = 2 + DATE_W + 1 + WD_W + 1 + NAV_W
     weekdays = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
+
+    print()
+    print(f"  {_pad('日期', DATE_W)} {_pad('周几', WD_W)} {_pad('净值', NAV_W, '>')}")
+    print("  " + "─" * (sep_w - 2))
     for _, r in subset.iterrows():
         wd = weekdays[r["date"].dayofweek]
-        print(f"  {r['date'].strftime('%Y-%m-%d'):<12} {wd:<6} {r['nav']:>8.4f}")
+        date_str = r["date"].strftime("%Y-%m-%d")
+        print(f"  {_pad(date_str, DATE_W)} {_pad(wd, WD_W)} {_pad(f'{r['nav']:.4f}', NAV_W, '>')}")
     print(f"\n  共 {len(subset)} 个交易日")
     print()
 
