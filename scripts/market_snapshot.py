@@ -19,16 +19,63 @@ import pandas as pd
 
 # ── Data fetchers ────────────────────────────────────────────────────────
 
+import time
+import random
+import requests
+
+
+def _with_browser_headers(func):
+    """Context manager: patch requests with browser User-Agent to avoid 430/blocking."""
+    original_get = requests.get
+    original_post = requests.post
+
+    def _patched(method, url, **kwargs):
+        headers = kwargs.get("headers") or {}
+        headers.setdefault("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")
+        headers.setdefault("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8")
+        headers.setdefault("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")
+        kwargs["headers"] = headers
+        return method(url, **kwargs)
+
+    try:
+        requests.get = lambda url, **kw: _patched(original_get, url, **kw)
+        requests.post = lambda url, **kw: _patched(original_post, url, **kw)
+        return func()
+    finally:
+        requests.get = original_get
+        requests.post = original_post
+
+
+def _retry(func, name: str, max_retries: int = 3, base_delay: float = 2.0):
+    """Retry with exponential backoff + jitter on connection errors."""
+    last_exc = None
+    for attempt in range(max_retries + 1):
+        try:
+            return func()
+        except Exception as e:
+            last_exc = e
+            if attempt < max_retries:
+                delay = base_delay * (2 ** attempt) + random.uniform(0, 1)
+                print(f"  [RETRY] {name} 第 {attempt + 1} 次重试，等待 {delay:.1f}s...")
+                time.sleep(delay)
+    raise last_exc  # type: ignore[misc]
+
+
 def _fetch_indices() -> pd.DataFrame:
     import akshare as ak
 
-    return ak.stock_zh_index_spot_em()
+    # 优先使用东方财富（数据更全），失败则降级到新浪
+    try:
+        return _retry(lambda: _with_browser_headers(ak.stock_zh_index_spot_em), "指数数据(EM)")
+    except Exception:
+        print(f"  [INFO] 东方财富指数接口不可用，切换新浪数据源...")
+        return _retry(lambda: ak.stock_zh_index_spot_sina(), "指数数据(Sina)")
 
 
 def _fetch_etfs() -> pd.DataFrame:
     import akshare as ak
 
-    return ak.fund_etf_spot_em()
+    return _retry(lambda: ak.fund_etf_spot_em(), "ETF 数据")
 
 
 # ── Display helpers ──────────────────────────────────────────────────────
@@ -254,7 +301,7 @@ def main() -> None:
 
     print()
     print(f"  ╔{'═' * 52}╗")
-    print(f"  ║  📡 实时行情快照                                        ║")
+    print(f"  ║                  📡 实时行情快照                   ║")
     print(f"  ╚{'═' * 52}╝")
 
     try:
@@ -266,6 +313,9 @@ def main() -> None:
     if args.gold:
         show_gold(etfs)
         return
+
+    # 两次请求之间稍作间隔，避免触发限流
+    time.sleep(1.5)
 
     try:
         indices = _fetch_indices()
