@@ -88,6 +88,19 @@ python scripts/add_transaction.py fill 002611    # 指定产品
 
 **6. 录入后**：运行 `python scripts/portfolio_summary.py` 确认数据正确。
 
+### 基金数据查询 (`scripts/fund_info.py`)
+
+快速查询净值、交易日、统计摘要，替代临时 Python 一行脚本。
+
+```bash
+python scripts/fund_info.py nav 002611                 # 最近 20 天净值走势
+python scripts/fund_info.py nav 002611 --days 60       # 最近 60 天
+python scripts/fund_info.py calendar 002611 05-01 05-28  # 区间交易日列表
+python scripts/fund_info.py stats 002611               # 近期统计（涨跌/回撤/均线/RSI）
+python scripts/fund_info.py stats 002611 --days 90     # 90 天统计
+python scripts/fund_info.py lookup 002611              # 查本地记录的基金名
+```
+
 ### 持仓分析报告 (`scripts/portfolio_report.py`)
 
 生成持仓分析报告和交互式图表。
