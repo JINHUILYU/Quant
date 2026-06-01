@@ -240,7 +240,7 @@ def show_summary(indices: pd.DataFrame, etfs: pd.DataFrame) -> None:
         print(f"  黄金 ETF 窄幅波动，观望为主")
 
     if abs(chip_chg) > 2:
-        print(f"  半导体波动较大（{_color(chip_chg)}），519674 仓位小，无需恐慌")
+        print(f"  半导体波动较大（{_color_chg(chip_chg)}），519674 仓位小，无需恐慌")
     print()
 
 
