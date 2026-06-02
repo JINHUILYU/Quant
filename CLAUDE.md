@@ -5,14 +5,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-# Install in editable mode
-pip install -e ".[dev]"
+# Install dependencies with uv
+uv sync --extra dev
 
 # Run all tests (no network calls — all tests use synthetic data)
-pytest tests/ -v
+uv run pytest tests/ -v
 
 # Run a single test file
-pytest tests/test_indicators.py -v
+uv run pytest tests/test_indicators.py -v
 ```
 
 ## Scripts

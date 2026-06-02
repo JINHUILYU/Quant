@@ -8,3 +8,4 @@ data/raw/*.parquet
 .ipynb_checkpoints/
 .vscode/
 *.html
+.venv/
