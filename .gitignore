@@ -3,8 +3,6 @@ __pycache__/
 *.egg-info/
 dist/
 build/
-data/raw/*.csv
-data/raw/*.parquet
 .ipynb_checkpoints/
 .vscode/
 *.html
