@@ -2,9 +2,7 @@
 """Portfolio analysis CLI.
 
 Usage:
-    python scripts/portfolio_report.py [product_code]
-
-Defaults to product_code=002611 if not provided.
+    python scripts/portfolio_report.py <product_code>
 """
 from __future__ import annotations
 
@@ -21,8 +19,6 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="GoldQuant Portfolio Analysis")
     parser.add_argument(
         "product_code",
-        nargs="?",
-        default="002611",
         help="Fund product code (e.g., 002611 for 博时黄金ETF联接C)",
     )
     parser.add_argument(
