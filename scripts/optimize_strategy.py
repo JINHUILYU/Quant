@@ -138,10 +138,15 @@ def _compute_sharpe(equity_curve: pd.Series, risk_free: float = 0.02) -> float:
     returns = equity_curve.pct_change().dropna()
     if len(returns) < 2:
         return 0.0
-    excess = returns - risk_free / 252
-    if excess.std() == 0:
+    # Filter out flat periods (strategy never entered)
+    nonzero = returns[returns.abs() > 1e-10]
+    if len(nonzero) < 2:
         return 0.0
-    return float(excess.mean() / excess.std() * np.sqrt(252))
+    excess = nonzero - risk_free / 252
+    std = excess.std()
+    if std < 1e-10:
+        return 0.0
+    return float(excess.mean() / std * np.sqrt(252))
 
 
 def _compute_profit_factor(trades) -> float:
@@ -248,20 +253,55 @@ def optimize_product(
 # Display
 # ═══════════════════════════════════════════════════════════════════════════
 
+import re
+import unicodedata
+
 GREEN = "\033[92m"
 YELLOW = "\033[93m"
 RED = "\033[91m"
 CYAN = "\033[96m"
 RESET = "\033[0m"
 BOLD = "\033[1m"
+DIM = "\033[2m"
 
 
-def _color_ret(v: float) -> str:
+def _dw(s: str) -> int:
+    """Display width: CJK=2, ASCII=1. Strips ANSI codes first."""
+    clean = re.sub(r"\033\[[0-9;]*m", "", s)
+    w = 0
+    for ch in clean:
+        w += 2 if unicodedata.east_asian_width(ch) in ("W", "F") else 1
+    return w
+
+
+def _pad(s: str, width: int, align: str = "<") -> str:
+    """Pad *s* to *display width* (accounts for ANSI codes)."""
+    d = _dw(s)
+    pad_width = max(0, width - d)
+    if align == ">":
+        return " " * pad_width + s
+    return s + " " * pad_width
+
+
+def _color_ret(v: float | None, width: int = 7) -> str:
+    """Colored return string, padded to *width* display chars."""
+    if v is None or (isinstance(v, float) and (np.isnan(v) or np.isinf(v))):
+        return _pad(f"{DIM}N/A{RESET}", width)
     if v > 0:
-        return f"{GREEN}{v:+.1f}%{RESET}"
+        s = f"{GREEN}{v:+.1f}%{RESET}"
     elif v < 0:
-        return f"{RED}{v:.1f}%{RESET}"
-    return f" 0.0%"
+        s = f"{RED}{v:.1f}%{RESET}"
+    else:
+        s = f"{DIM} 0.0%{RESET}"
+    return _pad(s, width)
+
+
+def _num_str(v: float | None, fmt: str = ".2f", width: int = 7) -> str:
+    """Formatted number, grey N/A if None/NaN/Inf."""
+    if v is None or (isinstance(v, float) and (np.isnan(v) or np.isinf(v))):
+        return _pad(f"{DIM}N/A{RESET}", width)
+    s = f"{v:{fmt}}"
+    return _pad(s, width)
 
 
 def show_best_per_product(
@@ -281,12 +321,15 @@ def show_best_per_product(
 
     print(f"\n  {BOLD}🏆 各产品最优策略（按{CYAN}{obj_label}{RESET}{BOLD}排序）{RESET}")
     print()
+    # Header with display-width-aware padding
     header = (
-        f"  {'产品':<24} {'最优策略':<22} {'参数':<35} "
-        f"{'总收益':>7} {'年化':>7} {'回撤':>6} {'Sharpe':>7} {'胜率':>6}"
+        f"  {_pad('产品', 22)} {_pad('最优策略', 22)} {_pad('参数', 34)} "
+        f"{_pad('总收益', 7, '>')} {_pad('年化', 7, '>')} "
+        f"{_pad('回撤', 6, '>')} {_pad('Sharpe', 6, '>')} "
+        f"{_pad('胜率', 6, '>')} {_pad('交易', 4, '>')}"
     )
     print(header)
-    print("  " + "─" * 115)
+    print("  " + "─" * 122)
 
     for code, results in all_results.items():
         if not results:
@@ -295,13 +338,17 @@ def show_best_per_product(
         name = best.product_name
         strat = best.strategy_name
         params = best.param_str
-        if len(params) > 34:
-            params = params[:31] + "..."
+        if len(params) > 33:
+            params = params[:30] + "..."
+
+        n_trades = best.n_trades
+        trades_str = _pad(str(n_trades), 4, ">") if n_trades > 0 else _pad(f"{DIM}—{RESET}", 4, ">")
 
         print(
-            f"  {name:<24} {CYAN}{strat:<22}{RESET} {params:<35} "
-            f"{_color_ret(best.total_return):>20} {best.cagr:>6.1f}% "
-            f"{best.max_dd:>5.1f}% {best.sharpe:>6.2f} {best.win_rate:>5.1f}%"
+            f"  {_pad(name, 22)} {_pad(CYAN + strat + RESET, 22)} {_pad(params, 34)} "
+            f"{_color_ret(best.total_return)} {_color_ret(best.cagr)} "
+            f"{_num_str(best.max_dd, '.1f', 6)} {_num_str(best.sharpe, '.2f', 6)} "
+            f"{_color_ret(best.win_rate, 6)} {trades_str}"
         )
 
     print()
@@ -334,29 +381,36 @@ def show_full_ranking(
     print(f"\n  {BOLD}📋 {product_name} — 各策略最优参数（按{CYAN}{obj_label}{RESET}{BOLD}）{RESET}")
     print()
     header = (
-        f"  {'策略':<24} {'最优参数':<42} "
-        f"{'总收益':>7} {'年化':>7} {'回撤':>6} {'Sharpe':>7} {'Calmar':>7} {'胜率':>6} {'交易':>5}"
+        f"  {_pad('策略', 24)} {_pad('最优参数', 40)} "
+        f"{_pad('总收益', 7, '>')} {_pad('年化', 7, '>')} "
+        f"{_pad('回撤', 6, '>')} {_pad('Sharpe', 6, '>')} "
+        f"{_pad('Calmar', 6, '>')} {_pad('胜率', 6, '>')} {_pad('交易', 4, '>')}"
     )
     print(header)
     print("  " + "─" * 120)
 
     for r in deduped[:top_n]:
         params = r.param_str
-        if len(params) > 41:
-            params = params[:38] + "..."
+        if len(params) > 39:
+            params = params[:36] + "..."
+        n_trades = r.n_trades
+        trades_str = _pad(str(n_trades), 4, ">") if n_trades > 0 else _pad(f"{DIM}—{RESET}", 4, ">")
+
         print(
-            f"  {CYAN}{r.strategy_name:<24}{RESET} {params:<42} "
-            f"{_color_ret(r.total_return):>14} {r.cagr:>6.1f}% {r.max_dd:>5.1f}% "
-            f"{r.sharpe:>6.2f} {r.calmar:>6.2f} {r.win_rate:>5.1f}% {r.n_trades:>5}"
+            f"  {_pad(CYAN + r.strategy_name + RESET, 24)} {_pad(params, 40)} "
+            f"{_color_ret(r.total_return)} {_color_ret(r.cagr)} "
+            f"{_num_str(r.max_dd, '.1f', 6)} {_num_str(r.sharpe, '.2f', 6)} "
+            f"{_num_str(r.calmar, '.2f', 6)} {_color_ret(r.win_rate, 6)} {trades_str}"
         )
 
     # Buy & hold benchmark
-    print(f"  {'─' * 120}")
     bh = next((r for r in results if r.strategy_name == "BuyAndHold"), None)
     if bh:
+        print(f"  {'─' * 120}")
         print(
-            f"  {'📊 买入持有基准':<24} {'':<42} "
-            f"{_color_ret(bh.total_return):>14} {bh.cagr:>6.1f}% {bh.max_dd:>5.1f}%"
+            f"  {DIM}📊 买入持有基准{RESET}     {'':40} "
+            f"{_pad(f'{DIM}{bh.total_return:+.1f}%{RESET}', 7)} "
+            f"{_pad(f'{DIM}{bh.cagr:+.1f}%{RESET}', 7)}"
         )
     print()
 
@@ -368,27 +422,30 @@ def show_all_objectives(
     objectives = [
         ("total_return", "总收益"),
         ("sharpe", "Sharpe"),
-        ("calmar", "Calmar(收益/回撤)"),
-        ("win_rate", "胜率"),
+        ("calmar", "Calmar"),
     ]
 
     print(f"\n  {BOLD}🎯 多目标对比 — 各产品在不同目标下的最优策略{RESET}")
     print()
-    header = f"  {'产品':<22} " + " ".join(f"{'策略':<22} {'收益':>7}  " for _ in objectives)
-    print(header)
-    print("  " + "─" * 140)
+    # Header
+    parts = [f"  {_pad('产品', 22)}"]
+    for _, label in objectives:
+        parts.append(f"{_pad('策略', 20)} {_pad(label, 7, '>')}")
+    print(" ".join(parts))
+    print("  " + "─" * 120)
 
     for code, results in all_results.items():
         if not results:
             continue
         name = results[0].product_name
-        parts = []
+        row_parts = [f"  {_pad(name, 22)}"]
         for obj_key, _ in objectives:
             sorted_results = sorted(results, key=lambda r: getattr(r, obj_key), reverse=True)
             best = sorted_results[0]
-            strat_short = best.strategy_name[:20]
-            parts.append(f"{strat_short:<22} {_color_ret(best.total_return):>12}")
-        print(f"  {name:<22} " + "  ".join(parts))
+            strat_short = _pad(CYAN + best.strategy_name[:18] + RESET, 20)
+            ret = _color_ret(best.total_return)
+            row_parts.append(f"{strat_short} {ret}")
+        print(" ".join(row_parts))
 
     print()
 
