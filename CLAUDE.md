@@ -113,6 +113,20 @@ python scripts/market_snapshot.py --gold    # 只看黄金 ETF
 
 数据来源为 akshare 实时行情，基金净值收盘后才出，盘中用此脚本看标的走势辅助决策。
 
+### 策略回测对比 (`scripts/backtest_compare.py`)
+
+在 Au99.99 或持仓基金上回测策略，与买入持有和实际收益对比。
+
+```bash
+# 黄金现货策略回测
+python scripts/backtest_compare.py gold --capital 10000 --from 2023-01-01
+
+# 持仓基金策略回测 + 实际收益对比
+python scripts/backtest_compare.py portfolio --capital 10000
+```
+
+输出包括：买入持有收益、MA 交叉/布林突破/长线布林策略收益、实际持仓收益、择时 α。
+
 ### 持仓分析报告 (`scripts/portfolio_report.py`)
 
 生成持仓分析报告和交互式图表。
