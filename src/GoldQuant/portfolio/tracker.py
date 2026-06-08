@@ -91,13 +91,19 @@ class PortfolioTracker:
                     notes=str(row.get("notes", "") or ""),
                 ))
             else:
+                price = row.get("price")
+                shares = row.get("shares")
+                # Skip incomplete rows (NAV not yet filled) so they don't
+                # corrupt cost-basis / share-count calculations.
+                if pd.isna(price) or pd.isna(shares) or price == 0:
+                    continue
                 transactions.append(Transaction(
                     date=row["date"],
                     product=str(row["product"]),
                     type=txn_type,
                     amount=float(row["amount"]),
-                    price=float(row["price"]),
-                    shares=float(row["shares"]),
+                    price=float(price),
+                    shares=float(shares),
                     fee=float(row.get("fee", 0.0) or 0.0),
                     notes=str(row.get("notes", "") or ""),
                 ))
