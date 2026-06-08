@@ -236,6 +236,9 @@ class PortfolioTracker:
 
         Buys are negative cash flows, sells are positive, current value
         is a positive terminal cash flow. Returns annualized percentage.
+
+        Returns 0.0 when holding period < 90 days (XIRR unreliable for
+        very short periods due to aggressive annualization).
         """
         flows: list[tuple[pd.Timestamp, float]] = []
         for t in transactions:
@@ -247,6 +250,10 @@ class PortfolioTracker:
         flows.sort(key=lambda x: x[0])
 
         first_date = flows[0][0]
+        total_days = (current_date - first_date).days
+        if total_days < 90:
+            return 0.0  # too short for meaningful annualization
+
         times = [(d - first_date).days / 365.0 for d, _ in flows]
         amounts = [cf for _, cf in flows]
 
@@ -269,7 +276,7 @@ class PortfolioTracker:
                 dnpv += -cf * t / ((1.0 + rate) ** (t + 1.0))
 
             if abs(npv) < 1e-7:
-                return round(rate * 100.0, 2)
+                break
 
             if dnpv == 0.0:
                 break
@@ -279,9 +286,15 @@ class PortfolioTracker:
                 rate = -0.999
             elif rate > 10.0:
                 rate = 10.0
+        else:
+            # Newton didn't converge
+            logger.warning("XIRR did not converge; returning 0.0")
+            return 0.0
 
-        logger.warning("XIRR did not converge; returning 0.0")
-        return 0.0
+        # Sanity check: rate outside [-50%, +500%] is likely noise
+        if rate < -0.5 or rate > 5.0:
+            return 0.0
+        return round(rate * 100.0, 2)
 
     def compute_max_drawdown(self, series: pd.Series) -> float:
         peak = series.cummax()
