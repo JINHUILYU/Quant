@@ -38,7 +38,7 @@ python scripts/fund_info.py calendar <code> <start_date> <end_date>
 
 - **C 类基金**（代码名含 "C" 或用户明确说是 C 类）：申购费 0%，**不传 `--fee`**
 - **A 类基金**（代码名含 "A"）：有申购费，用户通常告知具体金额，传 `--fee <金额>`
-- 不确定时，检查 `src/GoldQuant/portfolio/fees.py` 中的 `BUY_FEE_RATES` 字典
+- 不确定时，检查 `src/Quantfolio/portfolio/fees.py` 中的 `BUY_FEE_RATES` 字典
 
 ### 5. 批量执行
 

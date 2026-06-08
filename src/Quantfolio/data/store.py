@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from GoldQuant.config import GoldQuantConfig
+from Quantfolio.config import QuantfolioConfig
 
 logger = logging.getLogger(__name__)
 
@@ -13,8 +13,8 @@ logger = logging.getLogger(__name__)
 class LocalDataStore:
     """Local CSV persistence for gold price data."""
 
-    def __init__(self, config: GoldQuantConfig | None = None):
-        self.cfg = config or GoldQuantConfig()
+    def __init__(self, config: QuantfolioConfig | None = None):
+        self.cfg = config or QuantfolioConfig()
         self._dir: Path | None = None
 
     @property

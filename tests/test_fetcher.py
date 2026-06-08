@@ -3,7 +3,7 @@ from __future__ import annotations
 from unittest.mock import patch, MagicMock
 import pandas as pd
 
-from GoldQuant.data.fetcher import SgeFetcher, DataFetchError
+from Quantfolio.data.fetcher import SgeFetcher, DataFetchError
 
 
 def make_fake_sge_data() -> pd.DataFrame:

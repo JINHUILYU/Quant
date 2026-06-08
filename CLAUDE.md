@@ -58,7 +58,7 @@ python scripts/add_transaction.py fill 002611    # 指定产品
 - `--fee`：手续费（可选，不传则按费率表自动计算）
 - `--notes`：备注（可选）
 
-**费率规则**：在 `src/GoldQuant/portfolio/fees.py` 中配置。买入费率默认 0%（C 类基金），卖出按持有天数阶梯：<7 天 1.5%，7-30 天 0.1%，≥30 天 0%。
+**费率规则**：在 `src/Quantfolio/portfolio/fees.py` 中配置。买入费率默认 0%（C 类基金），卖出按持有天数阶梯：<7 天 1.5%，7-30 天 0.1%，≥30 天 0%。
 
 ### 添加交易记录的标准流程
 
@@ -199,7 +199,7 @@ df = add_rsi(add_sma(df, 20), 14)
 
 ### Config
 
-`GoldQuantConfig` is a `@dataclass` in `config.py` holding all tunable parameters — data dir, commission, indicator periods, etc. All components accept an optional `config` argument and default to a fresh `GoldQuantConfig()`.
+`QuantfolioConfig` is a `@dataclass` in `config.py` holding all tunable parameters — data dir, commission, indicator periods, etc. All components accept an optional `config` argument and default to a fresh `QuantfolioConfig()`.
 
 ### Data layer
 

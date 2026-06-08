@@ -7,8 +7,8 @@ from unittest.mock import patch
 import numpy as np
 import pandas as pd
 
-from GoldQuant.portfolio.models import Holding, PortfolioSummary, Transaction
-from GoldQuant.portfolio.tracker import PortfolioTracker
+from Quantfolio.portfolio.models import Holding, PortfolioSummary, Transaction
+from Quantfolio.portfolio.tracker import PortfolioTracker
 
 
 # ── Helpers ─────────────────────────────────────────────────────────────

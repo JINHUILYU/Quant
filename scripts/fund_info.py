@@ -21,7 +21,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 import pandas as pd
 
-from GoldQuant.portfolio.tracker import PortfolioTracker
+from Quantfolio.portfolio.tracker import PortfolioTracker
 
 
 # ── Display-width helpers (CJK = 2, ASCII = 1) ─────────────────────────
@@ -147,9 +147,9 @@ def cmd_stats(args) -> None:
 
 def cmd_lookup(args) -> None:
     """Show fund name from transaction notes, or fetch latest NAV to identify."""
-    from GoldQuant.config import GoldQuantConfig
+    from Quantfolio.config import QuantfolioConfig
 
-    cfg = GoldQuantConfig()
+    cfg = QuantfolioConfig()
     csv_path = cfg.portfolio_dir_abs / f"{args.product}.csv"
 
     if csv_path.exists():

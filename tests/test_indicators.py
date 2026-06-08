@@ -3,7 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import numpy as np
 
-from GoldQuant.analysis.indicators import (
+from Quantfolio.analysis.indicators import (
     add_sma, add_ema, add_rsi, add_macd, add_bollinger, add_atr,
 )
 

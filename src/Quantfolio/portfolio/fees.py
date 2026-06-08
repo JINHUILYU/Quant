@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from GoldQuant.portfolio.models import Transaction
+from Quantfolio.portfolio.models import Transaction
 
 # ---------------------------------------------------------------------------
 # Configurable fee rates

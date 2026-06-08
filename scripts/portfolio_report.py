@@ -12,11 +12,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from GoldQuant.portfolio.tracker import PortfolioTracker
+from Quantfolio.portfolio.tracker import PortfolioTracker
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="GoldQuant Portfolio Analysis")
+    parser = argparse.ArgumentParser(description="Quantfolio Portfolio Analysis")
     parser.add_argument(
         "product_code",
         help="Fund product code (e.g., 002611 for 博时黄金ETF联接C)",

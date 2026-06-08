@@ -6,8 +6,8 @@ from typing import Any
 import pandas as pd
 import numpy as np
 
-from GoldQuant.config import GoldQuantConfig
-from GoldQuant.strategies.base import Strategy
+from Quantfolio.config import QuantfolioConfig
+from Quantfolio.strategies.base import Strategy
 
 
 @dataclass
@@ -25,8 +25,8 @@ class TradeRecord:
 class BacktestEngine:
     """Bar-by-bar simulation engine for long-only strategies."""
 
-    def __init__(self, config: GoldQuantConfig | None = None):
-        self.cfg = config or GoldQuantConfig()
+    def __init__(self, config: QuantfolioConfig | None = None):
+        self.cfg = config or QuantfolioConfig()
 
     def run(self, strategy: Strategy, data: pd.DataFrame) -> dict[str, Any]:
         data = strategy.init(data.copy())

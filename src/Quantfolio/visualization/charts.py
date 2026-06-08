@@ -4,7 +4,7 @@ import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-from GoldQuant.backtest.engine import TradeRecord
+from Quantfolio.backtest.engine import TradeRecord
 
 
 def price_fig(

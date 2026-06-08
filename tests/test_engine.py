@@ -3,10 +3,10 @@ from __future__ import annotations
 import pandas as pd
 import numpy as np
 
-from GoldQuant.config import GoldQuantConfig
-from GoldQuant.backtest.engine import BacktestEngine
-from GoldQuant.backtest.metrics import compute_metrics, BacktestResult
-from GoldQuant.strategies.examples import MovingAverageCrossover
+from Quantfolio.config import QuantfolioConfig
+from Quantfolio.backtest.engine import BacktestEngine
+from Quantfolio.backtest.metrics import compute_metrics, BacktestResult
+from Quantfolio.strategies.examples import MovingAverageCrossover
 
 
 def make_flat_data() -> pd.DataFrame:
@@ -44,7 +44,7 @@ def make_uptrend_data() -> pd.DataFrame:
 
 def test_zero_trades_on_flat_data():
     """Flat price should produce no trades for crossover strategies."""
-    cfg = GoldQuantConfig()
+    cfg = QuantfolioConfig()
     engine = BacktestEngine(cfg)
     # Use very short windows so SMAs exist
     s = MovingAverageCrossover(short_window=5, long_window=10)
@@ -105,8 +105,8 @@ def test_trade_record_fields():
 
 def test_commission_reduces_return():
     """With commission, return should be lower than without."""
-    cfg_no_comm = GoldQuantConfig(commission_pct=0.0, slippage_pct=0.0)
-    cfg_with_comm = GoldQuantConfig(commission_pct=0.01, slippage_pct=0.0)
+    cfg_no_comm = QuantfolioConfig(commission_pct=0.0, slippage_pct=0.0)
+    cfg_with_comm = QuantfolioConfig(commission_pct=0.01, slippage_pct=0.0)
 
     s = MovingAverageCrossover(short_window=2, long_window=5)
     df = make_uptrend_data()

@@ -22,10 +22,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 import pandas as pd
 
-from GoldQuant.config import GoldQuantConfig
-from GoldQuant.portfolio.fees import compute_buy, compute_sell
-from GoldQuant.portfolio.models import Transaction
-from GoldQuant.portfolio.tracker import PortfolioTracker
+from Quantfolio.config import QuantfolioConfig
+from Quantfolio.portfolio.fees import compute_buy, compute_sell
+from Quantfolio.portfolio.models import Transaction
+from Quantfolio.portfolio.tracker import PortfolioTracker
 
 
 def fetch_nav_on_date(product: str, target_date: str, allow_fallback: bool = True) -> float | None:
@@ -70,7 +70,7 @@ def fetch_nav_on_date(product: str, target_date: str, allow_fallback: bool = Tru
     return float(closest["nav"])
 
 
-def load_existing_txns(product: str, cfg: GoldQuantConfig) -> list[Transaction]:
+def load_existing_txns(product: str, cfg: QuantfolioConfig) -> list[Transaction]:
     """Load completed transactions (those with valid price) from CSV."""
     csv_path = cfg.portfolio_dir_abs / f"{product}.csv"
     if not csv_path.exists():
@@ -107,7 +107,7 @@ def append_transaction(
     shares: float,
     fee: float,
     notes: str,
-    cfg: GoldQuantConfig,
+    cfg: QuantfolioConfig,
 ) -> Path:
     """Append a row to the product CSV."""
     csv_path = cfg.portfolio_dir_abs / f"{product}.csv"
@@ -138,7 +138,7 @@ def add_single(args) -> None:
     When exact NAV is not yet available the row is written with blank
     price/shares/fee — run ``fill`` later to complete it.
     """
-    cfg = GoldQuantConfig()
+    cfg = QuantfolioConfig()
     date = args.date
     product = args.product
     txn_type = args.type
@@ -183,7 +183,7 @@ def add_single(args) -> None:
 
 def fill_incomplete(args) -> None:
     """Fill rows with missing price/shares/fee in chronological order."""
-    cfg = GoldQuantConfig()
+    cfg = QuantfolioConfig()
     products = [args.product_code] if args.product_code else [
         p.stem for p in cfg.portfolio_dir_abs.glob("*.csv")
         if p.stem != "template"

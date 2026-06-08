@@ -22,9 +22,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 import pandas as pd
 import numpy as np
 
-from GoldQuant.config import GoldQuantConfig
-from GoldQuant.backtest.engine import BacktestEngine
-from GoldQuant.strategies.examples import (
+from Quantfolio.config import QuantfolioConfig
+from Quantfolio.backtest.engine import BacktestEngine
+from Quantfolio.strategies.examples import (
     MovingAverageCrossover,
     RSIStrategy,
     BollingerBreakout,
@@ -32,15 +32,15 @@ from GoldQuant.strategies.examples import (
     LongTermRSI,
     LongTermBB,
 )
-from GoldQuant.data.store import LocalDataStore
-from GoldQuant.portfolio.tracker import PortfolioTracker
+from Quantfolio.data.store import LocalDataStore
+from Quantfolio.portfolio.tracker import PortfolioTracker
 
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Helpers
 # ═══════════════════════════════════════════════════════════════════════════
 
-def _make_strategies(cfg: GoldQuantConfig) -> list:
+def _make_strategies(cfg: QuantfolioConfig) -> list:
     """All available strategies with default parameters."""
     return [
         MovingAverageCrossover(cfg.sma_short, cfg.sma_long, cfg),
@@ -97,7 +97,7 @@ def run_gold(args) -> None:
         print(f"[ERROR] Au99.99 数据在 {start_date} 之后为空")
         return
 
-    cfg = GoldQuantConfig()
+    cfg = QuantfolioConfig()
     cfg.initial_capital = args.capital
 
     start_price = float(df.iloc[0]["close"])
@@ -170,7 +170,7 @@ PORTFOLIO_PRODUCTS: list[tuple[str, str]] = [
 def run_portfolio(args) -> None:
     """Backtest strategies on portfolio fund NAVs + compare with actual returns."""
     tracker = PortfolioTracker()
-    cfg = GoldQuantConfig()
+    cfg = QuantfolioConfig()
     cfg.initial_capital = args.capital
     engine = BacktestEngine(cfg)
 

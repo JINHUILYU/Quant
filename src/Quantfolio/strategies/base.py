@@ -5,7 +5,7 @@ from typing import Any
 
 import pandas as pd
 
-from GoldQuant.config import GoldQuantConfig
+from Quantfolio.config import QuantfolioConfig
 
 
 class Strategy(ABC):
@@ -20,8 +20,8 @@ class Strategy(ABC):
         super().__init_subclass__(**kwargs)
         Strategy.registry[cls.__name__] = cls
 
-    def __init__(self, config: GoldQuantConfig | None = None):
-        self.cfg = config or GoldQuantConfig()
+    def __init__(self, config: QuantfolioConfig | None = None):
+        self.cfg = config or QuantfolioConfig()
         self.name = self.__class__.__name__
 
     @abstractmethod

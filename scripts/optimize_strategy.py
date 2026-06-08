@@ -30,10 +30,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 import pandas as pd
 import numpy as np
 
-from GoldQuant.config import GoldQuantConfig
-from GoldQuant.backtest.engine import BacktestEngine
-from GoldQuant.strategies.base import Strategy
-from GoldQuant.strategies.examples import (
+from Quantfolio.config import QuantfolioConfig
+from Quantfolio.backtest.engine import BacktestEngine
+from Quantfolio.strategies.base import Strategy
+from Quantfolio.strategies.examples import (
     MovingAverageCrossover,
     RSIStrategy,
     BollingerBreakout,
@@ -41,8 +41,8 @@ from GoldQuant.strategies.examples import (
     LongTermRSI,
     LongTermBB,
 )
-from GoldQuant.data.store import LocalDataStore
-from GoldQuant.portfolio.tracker import PortfolioTracker
+from Quantfolio.data.store import LocalDataStore
+from Quantfolio.portfolio.tracker import PortfolioTracker
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -160,7 +160,7 @@ def optimize_product(
     product_code: str,
     product_name: str,
     data: pd.DataFrame,
-    config: GoldQuantConfig,
+    config: QuantfolioConfig,
     objective: str = "total_return",
     max_combos: int = 2000,
 ) -> list[OptimizationResult]:
@@ -494,7 +494,7 @@ def main() -> None:
     parser.add_argument("--funds-only", action="store_true", help="只分析持仓基金")
     args = parser.parse_args()
 
-    cfg = GoldQuantConfig()
+    cfg = QuantfolioConfig()
     cfg.initial_capital = args.capital
 
     use_gold = not args.funds_only

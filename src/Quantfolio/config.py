@@ -5,7 +5,7 @@ from pathlib import Path
 
 
 @dataclass
-class GoldQuantConfig:
+class QuantfolioConfig:
     data_dir: Path = field(default_factory=lambda: Path("data/raw"))
     portfolio_dir: str = "data/portfolio"
     default_symbol: str = "Au99.99"

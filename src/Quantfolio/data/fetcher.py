@@ -7,7 +7,7 @@ from typing import Optional
 import pandas as pd
 import akshare as ak
 
-from GoldQuant.config import GoldQuantConfig
+from Quantfolio.config import QuantfolioConfig
 
 logger = logging.getLogger(__name__)
 
@@ -19,8 +19,8 @@ class DataFetchError(Exception):
 class SgeFetcher:
     """Wrapper around AkShare for Shanghai Gold Exchange data."""
 
-    def __init__(self, config: GoldQuantConfig | None = None):
-        self.cfg = config or GoldQuantConfig()
+    def __init__(self, config: QuantfolioConfig | None = None):
+        self.cfg = config or QuantfolioConfig()
 
     def fetch_hist(self, symbol: str | None = None, retries: int = 3) -> pd.DataFrame:
         symbol = symbol or self.cfg.default_symbol

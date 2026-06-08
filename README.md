@@ -38,7 +38,7 @@ uv run python scripts/add_transaction.py fill 002611    # 指定产品
 
 > **交易日期规则**：基金以 15:00 为截止线，15:00 后下单按下一个交易日成交（周末/节假日顺延）。
 
-**费率规则**（`src/GoldQuant/portfolio/fees.py`）：
+**费率规则**（`src/Quantfolio/portfolio/fees.py`）：
 
 - C 类基金买入费率 0%，A 类有申购费
 - 卖出按持有天数阶梯：<7 天 1.5%，7-30 天 0.1%，≥30 天 0%
@@ -102,7 +102,7 @@ Quant/
 │   ├── market_snapshot.py       # 实时行情快照
 │   ├── portfolio_report.py      # 持仓分析报告
 │   └── portfolio_summary.py     # 投资组合汇总
-├── src/GoldQuant/               # 核心库
+├── src/Quantfolio/               # 核心库
 │   ├── config.py                # 全局配置
 │   ├── data/
 │   │   ├── fetcher.py           # 数据获取（akshare → SGE/基金数据）

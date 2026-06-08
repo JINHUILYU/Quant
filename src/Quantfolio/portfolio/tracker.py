@@ -8,8 +8,8 @@ import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-from GoldQuant.config import GoldQuantConfig
-from GoldQuant.portfolio.models import Holding, PortfolioSummary, Transaction
+from Quantfolio.config import QuantfolioConfig
+from Quantfolio.portfolio.models import Holding, PortfolioSummary, Transaction
 
 logger = logging.getLogger(__name__)
 
@@ -21,8 +21,8 @@ class PortfolioTracker:
     computes holdings, P&L, drawdown, and XIRR.
     """
 
-    def __init__(self, config: GoldQuantConfig | None = None):
-        self.cfg = config or GoldQuantConfig()
+    def __init__(self, config: QuantfolioConfig | None = None):
+        self.cfg = config or QuantfolioConfig()
 
     @property
     def portfolio_dir(self) -> Path:
@@ -413,7 +413,7 @@ class PortfolioTracker:
 
     def get_signals(self, product_code: str) -> str:
         """Run strategies on NAV data and return a human-readable signal summary."""
-        from GoldQuant.strategies.examples import (
+        from Quantfolio.strategies.examples import (
             BollingerBreakout,
             LongTermBB,
             LongTermMA,

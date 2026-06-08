@@ -4,10 +4,10 @@ from typing import Any
 
 import pandas as pd
 
-from GoldQuant.config import GoldQuantConfig
-from GoldQuant.strategies.base import Strategy
-from GoldQuant.analysis.indicators import add_sma, add_rsi, add_bollinger
-from GoldQuant.analysis.signals import SignalEvaluator
+from Quantfolio.config import QuantfolioConfig
+from Quantfolio.strategies.base import Strategy
+from Quantfolio.analysis.indicators import add_sma, add_rsi, add_bollinger
+from Quantfolio.analysis.signals import SignalEvaluator
 
 
 class MovingAverageCrossover(Strategy):

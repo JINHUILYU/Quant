@@ -12,8 +12,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from GoldQuant.config import GoldQuantConfig
-from GoldQuant.portfolio.tracker import PortfolioTracker
+from Quantfolio.config import QuantfolioConfig
+from Quantfolio.portfolio.tracker import PortfolioTracker
 
 
 def _display_width(s: str) -> int:
@@ -52,7 +52,7 @@ def _truncate(s: str, display_width: int) -> str:
 
 
 def main() -> None:
-    cfg = GoldQuantConfig()
+    cfg = QuantfolioConfig()
     tracker = PortfolioTracker(cfg)
 
     products: list[str] = sorted(
