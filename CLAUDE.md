@@ -127,6 +127,28 @@ python scripts/backtest_compare.py portfolio --capital 10000
 
 输出包括：买入持有收益、MA 交叉/布林突破/长线布林策略收益、实际持仓收益、择时 α。
 
+### 策略参数优化 (`scripts/optimize_strategy.py`)
+
+网格搜索每个产品的最优策略类型和参数组合。
+
+```bash
+# 所有持仓产品 + 黄金现货
+python scripts/optimize_strategy.py
+
+# 指定产品
+python scripts/optimize_strategy.py --product 002611
+
+# 按不同目标排序
+python scripts/optimize_strategy.py --objective sharpe     # 风险调整后收益
+python scripts/optimize_strategy.py --objective calmar     # 收益回撤比
+python scripts/optimize_strategy.py --all-objectives       # 多目标对比
+
+# 查看单个产品的完整策略排名
+python scripts/optimize_strategy.py --product Au99.99 --detail Au99.99
+```
+
+搜索空间：MA 交叉 (5-30/30-200)、RSI (7-21/20-30/70-90)、布林 (10-50/1.5-3.5σ) 等 6 个策略类型，约 200+ 参数组合。
+
 ### 持仓分析报告 (`scripts/portfolio_report.py`)
 
 生成持仓分析报告和交互式图表。
