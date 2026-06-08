@@ -12,10 +12,14 @@ from GoldQuant.portfolio.models import Transaction
 
 # Subscription fee (申购费率) per product. C-class funds are typically 0%.
 BUY_FEE_RATES: dict[str, float] = {
+    # C 类基金 — 申购费 0%
     "002611": 0.0,
     "000217": 0.0,
     "009505": 0.0,
     "008987": 0.0,
+    # A 类基金 — 申购费率（平台折扣后）
+    "016452": 0.0012,   # 南方纳斯达克100 A — 0.12%
+    "110020": 0.0012,   # 易方达沪深300ETF联接A — 0.12%
 }
 
 # Redemption fee (赎回费率) tiers: (max_days_exclusive, rate)
