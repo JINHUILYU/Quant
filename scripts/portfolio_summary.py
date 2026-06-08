@@ -85,6 +85,9 @@ def main() -> None:
         unrealized = summary.holdings[0].unrealized_pnl if summary.holdings else 0.0
         realized = total_pnl - unrealized
 
+        # XIRR from tracker (may be 0 if non-convergent)
+        irr = summary.irr_annual_pct
+
         notes = ""
         if summary.transactions:
             notes = summary.transactions[0].notes
@@ -99,6 +102,7 @@ def main() -> None:
             "unrealized": unrealized,
             "total_pnl": total_pnl,
             "total_pnl_pct": total_pnl_pct,
+            "irr": irr,
         })
 
         total_invested += invested
@@ -110,29 +114,35 @@ def main() -> None:
     # ── Output ────────────────────────────────────────────────────────────────
 
     CODE_W = 8
-    NAME_W = 28
+    NAME_W = 26
     NUM_W = 12
-    PCT_W = 10
+    PCT_W = 8
+    IRR_W = 8
 
-    # Display width: "  " + CODE_W + " " + NAME_W + " " + 6*NUM_W + 6*" " + PCT_W + "%"
-    SEP_W = 2 + CODE_W + 1 + NAME_W + 1 + NUM_W * 6 + 6 + PCT_W + 1
+    SEP_W = 2 + CODE_W + 1 + NAME_W + 1 + NUM_W * 6 + 6 + PCT_W + 1 + IRR_W + 1
 
     def _fmt_row(code: str, name: str, inv: float, wdr: float, mval: float,
-                 real: float, unreal: float, pnl: float, pct: float) -> str:
+                 real: float, unreal: float, pnl: float, pct: float,
+                 irr: float | None = None) -> str:
+        if irr and irr != 0:
+            irr_s = f"{irr:{IRR_W}.2f}%"
+        else:
+            irr_s = f"{'N/A':>{IRR_W}}"
         return (
             f"  {_pad(code, CODE_W)} {_pad(_truncate(name, NAME_W), NAME_W)} "
             f"{inv:{NUM_W},.2f} {wdr:{NUM_W},.2f} {mval:{NUM_W},.2f} "
             f"{real:{NUM_W},.2f} {unreal:{NUM_W},.2f} {pnl:{NUM_W},.2f} "
-            f"{pct:{PCT_W}.2f}%"
+            f"{pct:{PCT_W}.2f}%  {irr_s}"
         )
 
     def _fmt_header(code: str, name: str, inv: str, wdr: str, mval: str,
-                    real: str, unreal: str, pnl: str, pct: str) -> str:
+                    real: str, unreal: str, pnl: str, pct: str,
+                    irr: str) -> str:
         return (
             f"  {_pad(code, CODE_W)} {_pad(name, NAME_W)} "
             f"{_pad(inv, NUM_W, '>')} {_pad(wdr, NUM_W, '>')} {_pad(mval, NUM_W, '>')} "
             f"{_pad(real, NUM_W, '>')} {_pad(unreal, NUM_W, '>')} {_pad(pnl, NUM_W, '>')} "
-            f"{_pad(pct, PCT_W, '>')}"
+            f"{_pad(pct, PCT_W, '>')}  {_pad(irr, IRR_W, '>')}"
         )
 
     sep = "─" * SEP_W
@@ -142,13 +152,14 @@ def main() -> None:
     print(f"  📊 投资组合汇总")
     print(sep)
     print(_fmt_header("代码", "基金名称", "累计投入", "累计取出", "持仓市值",
-                       "已实现盈亏", "浮动盈亏", "总盈亏", "收益率"))
+                       "已实现盈亏", "浮动盈亏", "总盈亏", "收益率", "年化"))
     print("  " + "─" * (SEP_W - 2))
 
     for r in rows:
         print(_fmt_row(
             r["code"], r["name"], r["invested"], r["withdrawn"], r["market_val"],
             r["realized"], r["unrealized"], r["total_pnl"], r["total_pnl_pct"],
+            r.get("irr"),
         ))
 
     print("  " + "─" * (SEP_W - 2))
