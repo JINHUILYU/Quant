@@ -28,8 +28,14 @@ from GoldQuant.portfolio.models import Transaction
 from GoldQuant.portfolio.tracker import PortfolioTracker
 
 
-def fetch_nav_on_date(product: str, target_date: str) -> float | None:
-    """Fetch NAV for *product* on *target_date*. Returns None if unavailable."""
+def fetch_nav_on_date(product: str, target_date: str, allow_fallback: bool = True) -> float | None:
+    """Fetch NAV for *product* on *target_date*. Returns None if unavailable.
+
+    When *allow_fallback* is False, only exact date match is accepted — no
+    fallback to prior trading day.  Use False in ``add`` (record intent, don't
+    guess) and True in ``fill`` (complete past data where weekends/holidays
+    legitimately need the prior day's NAV).
+    """
     tracker = PortfolioTracker()
     try:
         nav_df = tracker.fetch_nav(product)
@@ -43,14 +49,24 @@ def fetch_nav_on_date(product: str, target_date: str) -> float | None:
     if not match.empty:
         return float(match.iloc[0]["nav"])
 
-    # Fallback: closest date before target (for weekends/holidays)
+    if not allow_fallback:
+        print(f"  [INFO] {target_date} 净值暂未公布，稍后运行 fill 补全")
+        return None
+
+    # Only fallback for weekends (Sat=5, Sun=6).  For weekdays without NAV
+    # (today before publish, QDII T+1 delay) skip so the user can retry later.
+    if target.dayofweek < 5:
+        print(f"  [INFO] {target_date} 净值暂未公布（交易日），稍后重试 fill")
+        return None
+
+    # Weekend / holiday fallback: closest date before target
     before = nav_df[nav_df["date"] <= target]
     if before.empty:
         print(f"  [ERROR] {product} 在 {target_date} 及之前都没有净值数据")
         return None
 
     closest = before.iloc[-1]
-    print(f"  [INFO] {target_date} 无净值，使用最近交易日 {closest['date'].strftime('%Y-%m-%d')} 净值 {closest['nav']:.4f}")
+    print(f"  [INFO] {target_date} 是周末，使用最近交易日 {closest['date'].strftime('%Y-%m-%d')} 净值 {closest['nav']:.4f}")
     return float(closest["nav"])
 
 
@@ -117,7 +133,11 @@ def append_transaction(
 
 
 def add_single(args) -> None:
-    """Add one transaction from CLI arguments."""
+    """Add one transaction from CLI arguments.
+
+    When exact NAV is not yet available the row is written with blank
+    price/shares/fee — run ``fill`` later to complete it.
+    """
     cfg = GoldQuantConfig()
     date = args.date
     product = args.product
@@ -126,9 +146,23 @@ def add_single(args) -> None:
     known_fee = args.fee
     notes = args.notes or ""
 
-    price = fetch_nav_on_date(product, date)
+    # Don't fallback: if exact date NAV isn't available, leave blank for fill
+    price = fetch_nav_on_date(product, date, allow_fallback=False)
+
     if price is None:
-        sys.exit(1)
+        # Write placeholder row with blank price/shares/fee for fill to complete
+        csv_path = cfg.portfolio_dir_abs / f"{product}.csv"
+        exists = csv_path.exists()
+        with open(csv_path, "a", newline="") as f:
+            import csv as csv_mod
+            writer = csv_mod.writer(f)
+            if not exists:
+                writer.writerow(["date", "product", "type", "amount", "price", "shares", "fee", "notes"])
+            writer.writerow([date, product, txn_type, amount, "", "", "", notes])
+        print(f"  ✓ 已添加交易记录到 {csv_path}（净值待补全）")
+        print(f"    日期: {date}  产品: {product}  类型: {txn_type}")
+        print(f"    金额: ¥{amount:,.2f}  ⚠️ 净值未出，稍后运行 fill 补全")
+        return
 
     if txn_type == "buy":
         shares, fee = compute_buy(amount, price, product, known_fee)
