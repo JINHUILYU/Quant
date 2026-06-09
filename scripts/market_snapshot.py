@@ -89,23 +89,65 @@ def _fetch_lofs() -> pd.DataFrame | None:
             base_delay=1.5,
         )
     except Exception as e:
-        print(f"  [WARN] LOF 数据获取失败: {e}")
+        print(f"  [WARN] LOF 数据(Eastmoney)获取失败: {e}")
+
+    # Fallback: Sina LOF data
+    try:
+        df = _retry(
+            lambda: ak.fund_etf_category_sina(symbol="LOF基金"),
+            "LOF 数据(Sina)",
+            max_retries=2,
+            base_delay=1.5,
+        )
+        # Normalize codes: Sina uses "sz161226" / "sh501018", strip exchange prefix
+        if "代码" in df.columns:
+            import re
+            df["代码"] = df["代码"].str.replace(r"^(sz|sh)", "", regex=True)
+        return df
+    except Exception as e2:
+        print(f"  [WARN] LOF 数据(Sina)获取也失败: {e2}")
         return None
+
+
+def _validate_sector_df(df: pd.DataFrame | None, label: str) -> pd.DataFrame | None:
+    """Validate that *df* has columns recognized by show_sector_leaders."""
+    if df is None:
+        return None
+    if _find_col(df, ["板块名称", "名称", "name", "行业名称"]) is None or \
+       _find_col(df, ["涨跌幅", "涨幅", "change_pct", "涨跌幅(%)"]) is None:
+        print(f"  [WARN] {label}返回格式异常: {df.columns.tolist()}, 跳过")
+        return None
+    return df
 
 
 def _fetch_industry_sectors() -> pd.DataFrame | None:
     """Fetch industry sector performance. Returns None on failure."""
     import akshare as ak
 
+    # Primary: Eastmoney stock_board_industry_spot_em
     try:
-        return _retry(
+        df = _retry(
             lambda: _with_browser_headers(ak.stock_board_industry_spot_em),
             "行业板块数据",
             max_retries=2,
             base_delay=1.5,
         )
+        if (validated := _validate_sector_df(df, "行业板块主源")) is not None:
+            return validated
     except Exception as e:
-        print(f"  [WARN] 行业板块数据获取失败: {e}")
+        print(f"  [WARN] 行业板块数据(Eastmoney)获取失败: {e}")
+
+    # Fallback: stock_board_change_em (uses push2ex.eastmoney.com, different CDN)
+    try:
+        df = _retry(
+            lambda: ak.stock_board_change_em(),
+            "行业板块数据(change_em)",
+            max_retries=2,
+            base_delay=1.5,
+        )
+        return _validate_sector_df(df, "行业板块备用源")
+    except Exception as e2:
+        print(f"  [WARN] 行业板块数据(change_em)获取也失败: {e2}")
         return None
 
 
@@ -113,15 +155,30 @@ def _fetch_concept_sectors() -> pd.DataFrame | None:
     """Fetch concept sector performance. Returns None on failure."""
     import akshare as ak
 
+    # Primary: Eastmoney stock_board_concept_spot_em
     try:
-        return _retry(
+        df = _retry(
             lambda: _with_browser_headers(ak.stock_board_concept_spot_em),
             "概念板块数据",
             max_retries=2,
             base_delay=1.5,
         )
+        if (validated := _validate_sector_df(df, "概念板块主源")) is not None:
+            return validated
     except Exception as e:
-        print(f"  [WARN] 概念板块数据获取失败: {e}")
+        print(f"  [WARN] 概念板块数据(Eastmoney)获取失败: {e}")
+
+    # Fallback: stock_board_change_em (uses push2ex.eastmoney.com, different CDN)
+    try:
+        df = _retry(
+            lambda: ak.stock_board_change_em(),
+            "概念板块数据(change_em)",
+            max_retries=2,
+            base_delay=1.5,
+        )
+        return _validate_sector_df(df, "概念板块备用源")
+    except Exception as e2:
+        print(f"  [WARN] 概念板块数据(change_em)获取也失败: {e2}")
         return None
 
 
@@ -705,7 +762,7 @@ def main() -> None:
 
     print()
     print(f"  ╔{'═' * 56}╗")
-    print(f"  ║                    📡 实时行情快照                       ║")
+    print(f"  ║                    📡 实时行情快照                     ║")
     print(f"  ╚{'═' * 56}╝")
 
     # ── Fetch ETF data ──
