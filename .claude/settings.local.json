@@ -3,7 +3,10 @@
     "allow": [
       "Bash(pip install *)",
       "Bash(python *)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(python3 *)",
+      "Bash(uv run *)",
+      "Bash(curl -s --max-time 10 \"https://push2ex.eastmoney.com/getAllBKChanges?ut=bd1d9ddb04089700cf9c27f6f7426281&pagesize=10&pageindex=0\")"
     ]
   }
 }
