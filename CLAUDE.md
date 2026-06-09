@@ -113,6 +113,19 @@ python scripts/market_snapshot.py --gold    # 只看黄金 ETF
 
 数据来源为 akshare 实时行情，基金净值收盘后才出，盘中用此脚本看标的走势辅助决策。
 
+### 市场机会扫描 (`scripts/market_scan.py`)
+
+扫描超跌 ETF、弱势板块和主题轮动，辅助发现加仓机会。
+
+```bash
+python scripts/market_scan.py                   # 完整扫描（ETF跌幅榜+弱势板块+主题热点）
+python scripts/market_scan.py --etf-only        # 只看 ETF 跌幅榜
+python scripts/market_scan.py --sector-only     # 只看行业板块
+python scripts/market_scan.py --top 10          # Top 10（默认8）
+```
+
+输出包括：ETF 跌幅榜（排除货币/债类）、实体行业弱势板块、今日主线热点、行业轮动概览。
+
 ### 策略回测对比 (`scripts/backtest_compare.py`)
 
 在 Au99.99 或持仓基金上回测策略，与买入持有和实际收益对比。
