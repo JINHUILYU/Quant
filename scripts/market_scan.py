@@ -50,6 +50,11 @@ def _display_width(s: str) -> int:
     s = _ANSI_RE.sub("", s)
     w = 0
     for c in s:
+        # Skip zero-width characters: nonspacing marks (variation selectors,
+        # combining chars), format chars (ZWJ, ZWNJ, etc.)
+        cat = unicodedata.category(c)
+        if cat in ("Mn", "Cf"):
+            continue
         w += 2 if unicodedata.east_asian_width(c) in ("W", "F") else 1
     return w
 
@@ -69,9 +74,14 @@ def _truncate(s: str, width: int) -> str:
     dw = 0
     result = []
     for c in s:
-        dw += 2 if unicodedata.east_asian_width(c) in ("W", "F") else 1
-        if dw > width:
+        cat = unicodedata.category(c)
+        if cat in ("Mn", "Cf"):
+            result.append(c)  # always keep zero-width chars
+            continue
+        cw = 2 if unicodedata.east_asian_width(c) in ("W", "F") else 1
+        if dw + cw > width:
             break
+        dw += cw
         result.append(c)
     return "".join(result)
 
