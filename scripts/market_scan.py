@@ -18,6 +18,17 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 import pandas as pd
 
+# Suppress akshare's tqdm progress bars in output
+import tqdm as _tqdm
+_tqdm.tqdm.pandas = lambda *a, **kw: a[0] if a else None
+import functools
+_orig_init = _tqdm.tqdm.__init__
+@functools.wraps(_orig_init)
+def _quiet_init(self, *a, **kw):
+    kw.setdefault("disable", True)
+    _orig_init(self, *a, **kw)
+_tqdm.tqdm.__init__ = _quiet_init
+
 # ── Display helpers ──────────────────────────────────────────────────────
 
 GREEN = "\033[92m"
@@ -27,6 +38,42 @@ CYAN = "\033[96m"
 RESET = "\033[0m"
 BOLD = "\033[1m"
 DIM = "\033[2m"
+
+import re
+import unicodedata
+
+_ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def _display_width(s: str) -> int:
+    """Terminal display width: CJK/emoji → 2, ASCII → 1, ANSI codes → 0."""
+    s = _ANSI_RE.sub("", s)
+    w = 0
+    for c in s:
+        w += 2 if unicodedata.east_asian_width(c) in ("W", "F") else 1
+    return w
+
+
+def _lpad(s: str, width: int) -> str:
+    """Left-pad to *display* width (i.e. right-align)."""
+    return " " * max(0, width - _display_width(s)) + s
+
+
+def _rpad(s: str, width: int) -> str:
+    """Right-pad to *display* width (i.e. left-align)."""
+    return s + " " * max(0, width - _display_width(s))
+
+
+def _truncate(s: str, width: int) -> str:
+    """Truncate to fit within *display* width."""
+    dw = 0
+    result = []
+    for c in s:
+        dw += 2 if unicodedata.east_asian_width(c) in ("W", "F") else 1
+        if dw > width:
+            break
+        result.append(c)
+    return "".join(result)
 
 
 def _color_chg(val: float) -> str:
@@ -76,16 +123,18 @@ def scan_etf_losers(top_n: int = 8) -> pd.DataFrame | None:
     mask = ~df["名称"].str.contains("|".join(skip_kw), na=False)
     losers = df[mask].nsmallest(top_n, "_chg")
 
-    CODE_W, NAME_W, PRICE_W, CHG_W = 8, 22, 10, 10
-    print(f"  {DIM}{'代码': >{CODE_W}}  {'名称': <{NAME_W}} {'最新价': >{PRICE_W}} {'涨跌幅': >{CHG_W}}{RESET}")
-    print("  " + "─" * (2 + CODE_W + 1 + NAME_W + 1 + PRICE_W + 1 + CHG_W))
+    CODE_W, NAME_W, PRICE_W, CHG_W = 8, 28, 10, 10
+    # Build header so we can measure its display width for the separator
+    hdr = f"{_lpad('代码', CODE_W)}  {_rpad('名称', NAME_W)} {_lpad('最新价', PRICE_W)} {_lpad('涨跌幅', CHG_W)}"
+    print(f"  {DIM}{hdr}{RESET}")
+    print("  " + "─" * _display_width(hdr))
 
     for _, r in losers.iterrows():
-        code = str(r.get("代码", ""))
-        name = str(r.get("名称", ""))[:NAME_W]
-        price = str(r.get("最新价", "-"))
-        chg_str = _color_chg(r["_chg"])
-        print(f"  {code: >{CODE_W}}  {name: <{NAME_W}} {price: >{PRICE_W}} {chg_str: >{CHG_W}}")
+        code = _lpad(str(r.get("代码", "")), CODE_W)
+        name = _rpad(_truncate(str(r.get("名称", "")), NAME_W), NAME_W)
+        price = _lpad(str(r.get("最新价", "-")), PRICE_W)
+        chg_str = _lpad(_color_chg(r["_chg"]), CHG_W)
+        print(f"  {code}  {name} {price} {chg_str}")
 
     print()
     return losers
@@ -112,16 +161,20 @@ def scan_sector_losers(top_n: int = 8) -> pd.DataFrame | None:
     mask = ~df["板块名称"].str.contains("|".join(noise_kw), na=False)
     real_sectors = df[mask]
 
+    # Dedup — same board name can appear in both 行业 and 概念 categories.
+    # Sort by _chg ascending first so we keep the weaker (more negative) entry.
+    real_sectors = real_sectors.sort_values("_chg").drop_duplicates(subset=["板块名称"])
     losers = real_sectors.nsmallest(top_n, "_chg")
 
     NAME_W, CHG_W = 18, 10
-    print(f"  {DIM}{'板块': <{NAME_W}} {'涨跌幅': >{CHG_W}}{RESET}")
-    print("  " + "─" * (2 + NAME_W + 1 + CHG_W))
+    hdr = f"{_rpad('板块', NAME_W)} {_lpad('涨跌幅', CHG_W)}"
+    print(f"  {DIM}{hdr}{RESET}")
+    print("  " + "─" * _display_width(hdr))
 
     for _, r in losers.iterrows():
-        name = str(r["板块名称"])[:NAME_W]
-        chg_str = _color_chg(r["_chg"])
-        print(f"  {name: <{NAME_W}} {chg_str: >{CHG_W}}")
+        name = _rpad(_truncate(str(r["板块名称"]), NAME_W), NAME_W)
+        chg_str = _lpad(_color_chg(r["_chg"]), CHG_W)
+        print(f"  {name} {chg_str}")
 
     print()
     return losers
@@ -148,18 +201,20 @@ def scan_themes() -> None:
     gainers = active.nlargest(5, "_chg")
 
     print(f"  {BOLD}🔥 今日主线（涨幅 Top 5）{RESET}")
-    print(f"  {DIM}{'ETF': <28s} {'涨跌幅': >8s}{RESET}")
-    print("  " + "─" * 40)
+    NAME_W, CHG_W = 28, 8
+    hdr = f"{_rpad('ETF', NAME_W)} {_lpad('涨跌幅', CHG_W)}"
+    print(f"  {DIM}{hdr}{RESET}")
+    print("  " + "─" * _display_width(hdr))
     for _, r in gainers.iterrows():
-        name = str(r.get("名称", ""))[:28]
-        print(f"  {name: <28s} {_color_chg(r['_chg']): >8s}")
+        name = _rpad(_truncate(str(r.get("名称", "")), NAME_W), NAME_W)
+        print(f"  {name} {_lpad(_color_chg(r['_chg']), CHG_W)}")
 
     # ── Sector clusters ──
     df = _fetch_sectors()
     if df is not None and "板块名称" in df.columns and "涨跌幅" in df.columns:
         df["_chg"] = pd.to_numeric(df["涨跌幅"], errors="coerce")
         noise_kw = ["昨日", "融资", "融券", "风格", "振幅", "破净", "活跃",
-                    "高贝", "低市", "亏损", "微盘", "打板", "连板"]
+                    "高贝", "低市", "亏损", "微盘", "打板", "连板", "昨日涨停"]
         real = df[~df["板块名称"].str.contains("|".join(noise_kw), na=False)]
 
         print(f"\n  {BOLD}📊 行业轮动概览{RESET}\n")
@@ -183,8 +238,11 @@ def scan_themes() -> None:
             best = matched.loc[matched["_chg"].idxmax()]
             worst = matched.loc[matched["_chg"].idxmin()]
             bar = "🟢" if avg_chg > 1 else ("🟡" if avg_chg > -1 else "🔴")
-            print(f"  {bar} {label: <18s} 均值 {_color_chg(avg_chg): >8s}  "
-                  f"领涨: {str(best['板块名称']): <8s} 领跌: {str(worst['板块名称']): <8s}")
+            label_col = _rpad(label, 18)
+            chg_col = _lpad(_color_chg(avg_chg), 8)
+            best_col = _rpad(_truncate(str(best["板块名称"]), 10), 10)
+            worst_col = _rpad(_truncate(str(worst["板块名称"]), 10), 10)
+            print(f"  {bar} {label_col} 均值 {chg_col}  领涨: {best_col} 领跌: {worst_col}")
 
     print()
 
@@ -200,7 +258,7 @@ def main() -> None:
 
     print()
     print(f"  ╔{'═' * 52}╗")
-    print(f"  ║                    🔍 市场机会扫描                       ║")
+    print(f"  ║                    🔍 市场机会扫描                 ║")
     print(f"  ╚{'═' * 52}╝")
 
     if args.sector_only:
