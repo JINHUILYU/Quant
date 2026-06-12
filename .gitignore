@@ -7,3 +7,4 @@ build/
 .vscode/
 .venv/
 data/nav_cache/
+data/portfolio/*_report.html
