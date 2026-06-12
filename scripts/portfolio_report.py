@@ -26,12 +26,18 @@ def main() -> None:
         action="store_true",
         help="Skip saving HTML chart",
     )
+    parser.add_argument(
+        "--refresh",
+        action="store_true",
+        help="Force re-fetch NAV from akshare (ignore cache)",
+    )
     args = parser.parse_args()
 
     tracker = PortfolioTracker()
     tracker.generate_report(
         product_code=args.product_code,
         save_html=not args.no_html,
+        force_refresh=args.refresh,
     )
 
 

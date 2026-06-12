@@ -5,5 +5,5 @@ dist/
 build/
 .ipynb_checkpoints/
 .vscode/
-*.html
 .venv/
+data/nav_cache/

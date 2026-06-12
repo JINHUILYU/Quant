@@ -166,14 +166,15 @@ python scripts/optimize_strategy.py --product Au99.99 --detail Au99.99
 
 ### 持仓分析报告 (`scripts/portfolio_report.py`)
 
-生成持仓分析报告和交互式图表。
+生成持仓分析报告和交互式图表，含 NAV 走势、买卖点标注、已实现/浮动盈亏。
 
 ```bash
-python scripts/portfolio_report.py 002611          # 查看 002611 的持仓分析
+python scripts/portfolio_report.py 002611           # 查看 002611 的持仓分析
 python scripts/portfolio_report.py 002611 --no-html # 不生成 HTML 图表
+python scripts/portfolio_report.py 002611 --refresh # 强制刷新 NAV 缓存
 ```
 
-输出包括：累计投入/取出、当前持仓、总盈亏、年化 IRR、最大回撤，以及基于均线/RSI/布林带的策略信号。
+NAV 数据缓存于 `data/nav_cache/`，首次拉取全量后仅增量更新。图表左上角显示 FIFO 已实现盈亏和当前浮动盈亏。
 
 ### 投资组合汇总 (`scripts/portfolio_summary.py`)
 

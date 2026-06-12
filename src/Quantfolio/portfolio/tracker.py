@@ -14,6 +14,79 @@ from Quantfolio.portfolio.models import Holding, PortfolioSummary, Transaction
 logger = logging.getLogger(__name__)
 
 
+def _pnl_str(val: float) -> str:
+    """Color-coded P&L string for HTML annotations."""
+    color = "green" if val >= 0 else "red"
+    return f'<span style="color:{color}">¥{val:+,.2f}</span>'
+
+
+# ── NAV cache ────────────────────────────────────────────────────────────
+
+class NavCache:
+    """Local NAV cache — stores fetched data and only merges new dates.
+
+    Avoids re-fetching full history from akshare every time: on first run
+    it fetches everything, then on subsequent runs it only requests what's
+    new since the last cached date.
+    """
+
+    def __init__(self, cache_dir: Path):
+        self.cache_dir = Path(cache_dir)
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
+
+    def _cache_path(self, product_code: str) -> Path:
+        return self.cache_dir / f"{product_code}.csv"
+
+    def load(self, product_code: str) -> pd.DataFrame | None:
+        """Read cached NAV, or None if no cache exists."""
+        p = self._cache_path(product_code)
+        if not p.exists():
+            return None
+        df = pd.read_csv(p, parse_dates=["date"])
+        if df.empty:
+            return None
+        return df.sort_values("date").reset_index(drop=True)
+
+    def save(self, product_code: str, df: pd.DataFrame) -> None:
+        df = df.sort_values("date").reset_index(drop=True)
+        df.to_csv(self._cache_path(product_code), index=False)
+
+    def fetch(self, product_code: str, force_refresh: bool = False) -> pd.DataFrame:
+        """Get NAV data, merging cache with any new data from akshare.
+
+        When *force_refresh* is False and today's data is already cached,
+        returns cached data without network call.
+        """
+        import akshare as ak
+
+        cached = None if force_refresh else self.load(product_code)
+
+        if cached is not None and not cached.empty:
+            last_cached = cached["date"].max()
+            today = pd.Timestamp.now().normalize()
+            if last_cached.date() >= today.date():
+                return cached  # up to date — no network call
+
+        # Fetch full history (akshare doesn't support date-range filter)
+        raw = ak.fund_open_fund_info_em(symbol=product_code, indicator="单位净值走势")
+        new = raw.rename(columns={"净值日期": "date", "单位净值": "nav"})
+        new["date"] = pd.to_datetime(new["date"])
+        new = new[["date", "nav"]].sort_values("date").reset_index(drop=True)
+
+        if cached is not None and not cached.empty:
+            merged = pd.concat([cached, new], ignore_index=True)
+            merged = merged.drop_duplicates(subset=["date"], keep="last")
+            merged = merged.sort_values("date").reset_index(drop=True)
+        else:
+            merged = new
+
+        self.save(product_code, merged)
+        return merged
+
+
+# ── Portfolio tracker ───────────────────────────────────────────────────
+
+
 class PortfolioTracker:
     """Portfolio analysis for Chinese fund transactions.
 
@@ -23,6 +96,7 @@ class PortfolioTracker:
 
     def __init__(self, config: QuantfolioConfig | None = None):
         self.cfg = config or QuantfolioConfig()
+        self._nav_cache = NavCache(self.cfg.data_dir_abs.parent / "nav_cache")
 
     @property
     def portfolio_dir(self) -> Path:
@@ -111,15 +185,14 @@ class PortfolioTracker:
 
     # ── NAV fetching ───────────────────────────────────────────────────
 
-    @staticmethod
-    def fetch_nav(product_code: str) -> pd.DataFrame:
-        import akshare as ak
+    def fetch_nav(self, product_code: str, force_refresh: bool = False) -> pd.DataFrame:
+        """Get NAV history for *product_code*, using local cache.
 
-        df = ak.fund_open_fund_info_em(symbol=product_code, indicator="单位净值走势")
-        df = df.rename(columns={"净值日期": "date", "单位净值": "nav"})
-        df["date"] = pd.to_datetime(df["date"])
-        df = df.sort_values("date").reset_index(drop=True)
-        return df[["date", "nav"]]
+        On first call fetches full history from akshare and caches it.
+        Subsequent calls return cached data unless *force_refresh* is True
+        or new dates are available.
+        """
+        return self._nav_cache.fetch(product_code, force_refresh=force_refresh)
 
     # ── Core analysis ──────────────────────────────────────────────────
 
@@ -301,12 +374,12 @@ class PortfolioTracker:
         dd = (series - peak) / peak * 100
         return round(abs(dd.min()), 2)
 
-    def analyze(self, product_code: str) -> PortfolioSummary:
+    def analyze(self, product_code: str, force_refresh: bool = False) -> PortfolioSummary:
         txns = self.load_transactions(product_code)
         if not txns:
             raise ValueError(f"No transactions found for {product_code}")
 
-        nav = self.fetch_nav(product_code)
+        nav = self.fetch_nav(product_code, force_refresh=force_refresh)
         daily = self.compute_daily_value(txns, nav)
         holdings = self.compute_holdings(daily, product_code)
 
@@ -352,12 +425,46 @@ class PortfolioTracker:
 
     def portfolio_fig(self, summary: PortfolioSummary) -> go.Figure:
         daily = summary.daily_value
+        txns = summary.transactions
+        nav = summary.nav_history
+
+        # ── Match buys/sells to NAV for markers ──
+        # Build a lookup: for each trade date, find the actual NAV on that date
+        nav_lookup = nav.set_index("date")["nav"].to_dict()
+
+        buys = [t for t in txns if t.type == "buy"]
+        sells = [t for t in txns if t.type == "sell"]
+
+        buy_dates = [t.date for t in buys]
+        buy_navs = [nav_lookup.get(t.date, None) for t in buys]
+        buy_texts = [
+            f"买入 {t.date.strftime('%Y-%m-%d')}<br>"
+            f"金额: ¥{t.amount:,.2f}<br>"
+            f"净值: {t.price:.4f}<br>"
+            f"份额: {t.shares:.2f}<br>"
+            + (f"手续费: ¥{t.fee:.2f}" if t.fee > 0 else "手续费: 0")
+            for t in buys
+        ]
+
+        sell_dates = [t.date for t in sells]
+        sell_navs = [nav_lookup.get(t.date, None) for t in sells]
+        # Compute realized P&L per sell using FIFO cost matching
+        sell_pnls = self._match_trade_pnl(buys, sells)
+        sell_texts = [
+            f"卖出 {t.date.strftime('%Y-%m-%d')}<br>"
+            f"到账: ¥{t.amount:,.2f}<br>"
+            f"净值: {t.price:.4f}<br>"
+            f"份额: {t.shares:.2f}<br>"
+            f"手续费: ¥{t.fee:.2f}<br>"
+            f"<b>已实现盈亏: {_pnl_str(sell_pnls[i])}</b>"
+            for i, t in enumerate(sells)
+        ]
 
         fig = make_subplots(
             rows=3, cols=1, shared_xaxes=True,
             vertical_spacing=0.06,
             row_heights=[0.4, 0.35, 0.25],
-            subplot_titles=("Portfolio Value", "NAV & Average Cost", "Drawdown"),
+            subplot_titles=("Portfolio Value", "NAV & Trade Markers", "Drawdown"),
         )
 
         fig.add_trace(go.Scatter(
@@ -372,11 +479,32 @@ class PortfolioTracker:
             line=dict(color="orange", width=1, dash="dash"),
         ), row=1, col=1)
 
+        # NAV line
         fig.add_trace(go.Scatter(
-            x=summary.nav_history["date"], y=summary.nav_history["nav"],
+            x=nav["date"], y=nav["nav"],
             mode="lines", name="NAV",
             line=dict(color="gold", width=1.5),
         ), row=2, col=1)
+
+        # Buy markers — green triangle-up
+        if buys:
+            fig.add_trace(go.Scatter(
+                x=buy_dates, y=buy_navs,
+                mode="markers", name="Buy",
+                marker=dict(symbol="triangle-up", size=12, color="green",
+                            line=dict(width=1, color="darkgreen")),
+                text=buy_texts, hoverinfo="text",
+            ), row=2, col=1)
+
+        # Sell markers — red triangle-down
+        if sells:
+            fig.add_trace(go.Scatter(
+                x=sell_dates, y=sell_navs,
+                mode="markers", name="Sell",
+                marker=dict(symbol="triangle-down", size=12, color="red",
+                            line=dict(width=1, color="darkred")),
+                text=sell_texts, hoverinfo="text",
+            ), row=2, col=1)
 
         if summary.holdings:
             avg_cost = summary.holdings[0].avg_cost
@@ -397,6 +525,23 @@ class PortfolioTracker:
             fill="tozeroy", fillcolor="rgba(178,34,34,0.15)",
         ), row=3, col=1)
 
+        # ── Floating P&L summary annotation ──
+        total_realized = sum(sell_pnls) if sell_pnls else 0.0
+        unrealized = summary.total_pnl - total_realized
+        ann_text = (
+            f"已实现: {_pnl_str(total_realized)}<br>"
+            f"浮动: {_pnl_str(unrealized)}<br>"
+            f"总盈亏: {_pnl_str(summary.total_pnl)}"
+        )
+        fig.add_annotation(
+            xref="paper", yref="paper", x=0.02, y=0.98,
+            text=ann_text, showarrow=False,
+            font=dict(size=12, color="#333"),
+            align="left",
+            bgcolor="rgba(255,255,255,0.85)",
+            bordercolor="#ccc", borderwidth=1, borderpad=8,
+        )
+
         fig.update_layout(
             title=f"Portfolio Analysis - {summary.product}",
             hovermode="x unified",
@@ -408,6 +553,35 @@ class PortfolioTracker:
         fig.update_yaxes(title_text="DD %", row=3, col=1)
 
         return fig
+
+    @staticmethod
+    def _match_trade_pnl(buys: list[Transaction], sells: list[Transaction]) -> list[float]:
+        """FIFO match sells against buys, returning realized P&L per sell."""
+        if not sells:
+            return []
+        # Build buy queue: (date, shares, price_per_share, fee)
+        from collections import deque
+        q = deque()
+        for b in buys:
+            q.append((b.shares, b.price, b.fee, b.amount))
+        pnls = []
+        for s in sells:
+            remaining = s.shares
+            cost_basis = 0.0
+            while remaining > 0 and q:
+                b_shares, b_price, b_fee, b_amount = q[0]
+                matched = min(remaining, b_shares)
+                # Proportionally allocate cost
+                ratio = matched / b_shares if b_shares > 0 else 0
+                cost_basis += ratio * (b_amount - b_fee)
+                remaining -= matched
+                if matched >= b_shares:
+                    q.popleft()
+                else:
+                    q[0] = (b_shares - matched, b_price, b_fee * (1 - ratio), b_amount * (1 - ratio))
+            realized = s.amount - cost_basis
+            pnls.append(round(realized, 2))
+        return pnls
 
     # ── Signals ────────────────────────────────────────────────────────
 
@@ -523,8 +697,8 @@ class PortfolioTracker:
 
     # ── Report ─────────────────────────────────────────────────────────
 
-    def generate_report(self, product_code: str, save_html: bool = True) -> str:
-        summary = self.analyze(product_code)
+    def generate_report(self, product_code: str, save_html: bool = True, force_refresh: bool = False) -> str:
+        summary = self.analyze(product_code, force_refresh=force_refresh)
         text = summary.summary()
         print(text)
 
