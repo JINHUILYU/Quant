@@ -462,8 +462,8 @@ class PortfolioTracker:
 
         fig = make_subplots(
             rows=3, cols=1, shared_xaxes=True,
-            vertical_spacing=0.06,
-            row_heights=[0.4, 0.35, 0.25],
+            vertical_spacing=0.04,
+            row_heights=[0.35, 0.40, 0.25],
             subplot_titles=("Portfolio Value", "NAV & Trade Markers", "Drawdown"),
         )
 
@@ -546,7 +546,7 @@ class PortfolioTracker:
             title=f"Portfolio Analysis - {summary.product}",
             hovermode="x unified",
             template="plotly_white",
-            height=800,
+            height=1000,
         )
         fig.update_yaxes(title_text="Value (CNY)", row=1, col=1)
         fig.update_yaxes(title_text="NAV", row=2, col=1)
