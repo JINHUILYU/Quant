@@ -546,7 +546,7 @@ class PortfolioTracker:
             title=f"Portfolio Analysis - {summary.product}",
             hovermode="x unified",
             template="plotly_white",
-            height=1000,
+            height=1100,
         )
         fig.update_yaxes(title_text="Value (CNY)", row=1, col=1)
         fig.update_yaxes(title_text="NAV", row=2, col=1)
