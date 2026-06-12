@@ -125,7 +125,10 @@ def append_transaction(
     }])
 
     if exists:
-        row.to_csv(csv_path, mode="a", header=False, index=False)
+        existing = pd.read_csv(csv_path, dtype={"product": str})
+        df = pd.concat([existing, row], ignore_index=True)
+        df = df.sort_values("date").reset_index(drop=True)
+        df.to_csv(csv_path, index=False)
     else:
         row.to_csv(csv_path, index=False)
 
@@ -255,6 +258,7 @@ def fill_incomplete(args) -> None:
             print(f"  ✓ {product} {target_date} {txn_type}: amount={amount} -> price={price:.4f} shares={shares:.2f} fee={fee:.2f}")
 
         if changed:
+            df = df.sort_values("date").reset_index(drop=True)
             df.to_csv(csv_path, index=False)
             print(f"  ✓ 已更新 {csv_path}")
         else:
