@@ -88,6 +88,8 @@ python scripts/add_transaction.py fill 002611    # 指定产品
 
 **6. 录入后**：运行 `python scripts/portfolio_summary.py` 确认数据正确。
 
+**7. 定投计划**：当前定投计划（产品、金额、频率）记录在 `config/regular_investment.md`，添加定投交易前先读取该文件确认最新计划。
+
 ### 基金数据查询 (`scripts/fund_info.py`)
 
 快速查询净值、交易日、统计摘要，替代临时 Python 一行脚本。
