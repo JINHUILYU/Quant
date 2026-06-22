@@ -170,7 +170,8 @@ def cmd_lookup(args) -> None:
 
 def _fetch(product: str) -> pd.DataFrame:
     """Fetch NAV, sorted chronologically."""
-    nav = PortfolioTracker.fetch_nav(product)
+    tracker = PortfolioTracker()
+    nav = tracker.fetch_nav(product)
     return nav.sort_values("date").reset_index(drop=True)
 
 

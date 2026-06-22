@@ -42,9 +42,10 @@
 
 ## 录入规则
 
-- **交易日判定**：QDII 净值 T+1 延迟，A 股基金当日可查
+- **交易日判定**：只在 **A 股交易日** 执行定投，周末和节假日（如端午、春节等）顺延到下一交易日。QDII 净值 T+1 延迟，A 股基金当日可查
 - **定投日**：以 15:00 为截止线，15:00 后下单按下一交易日成交
 - **费率**：C 类申购费 0%；A 类按费率表（通常 0.1%-0.15%）
+- **录入前确认交易日**：`python scripts/fund_info.py calendar <product> <start> <end>` 查看区间交易日列表，只在交易日录入
 - **录入命令**：`python scripts/add_transaction.py add --date YYYY-MM-DD --product XXXXXX --type buy --amount XX --notes "定投 XXX"`
 
 ## 参考：A 类 vs C 类基金

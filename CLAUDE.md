@@ -82,7 +82,8 @@ python scripts/add_transaction.py fill 002611    # 指定产品
 - 卖出 `--amount` = 到账金额（手续费已扣）
 
 **5. 定投/批量录入**：
-- 用户说"从 X 日开始每日/每周定投"，先通过 `fetch_nav()` 获取交易日列表
+- 用户说"从 X 日开始每日/每周定投"，先通过 `scripts/fund_info.py calendar` 获取交易日列表
+- **只在交易日录入**，周末和节假日（端午、春节、国庆等）跳过，不要盲目按日历日填写
 - 在 bash 中用 `for` 循环批量执行 `add_transaction.py add`
 - QDII 基金净值有 T+1 延迟，当天数据可能未出
 
